@@ -1,0 +1,8 @@
+{
+  "name": "@liquidity/server", "version": "0.1.0", "private": true, "type": "module",
+  "scripts": {"build": "tsc -p tsconfig.json", "start": "node dist/index.js"},
+  "dependencies": {
+    "@liquidity/shared": "workspace:*", "@liquidity/sim": "workspace:*",
+    "@colyseus/core": "0.18.16", "@colyseus/ws-transport": "0.18.3", "express": "^5.1.0"
+  }
+}

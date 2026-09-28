@@ -1,0 +1,7 @@
+# MARKET CAPTAINS — promotional illustration
+
+Generated with OpenAI imagegen on 27 September 2026. Output: MARKET_CAPTAINS_X.png. This is promotional key art, not a gameplay screenshot. No post has been published.
+
+## Executed prompt
+
+Create a premium wide landscape 16:9 promotional key art poster for an original playful browser arcade game. Exact main title, large and flawlessly readable: MARKET CAPTAINS. Put title across upper third in bold custom-looking cream and mint sci-fi lettering. Scene: a beautiful dark navy cosmic arena seen slightly from above, giant glowing golden Bitcoin sun central, a small violet Ethereum diamond planet orbiting it, four smaller colorful abstract crypto planets. Foreground: three charming original rounded chubby space captains with expressive visors, a mint frog-like captain, orange jelly captain and lilac cat-like captain riding luminous turquoise and violet orbital current trails and collecting tiny glowing liquidity diamonds. Mysterious slow red hooded hacker silhouette in lower right casting a subtle red drain filament; emerald safe wallet beacon opposite side. Strong sophisticated composition, suspense and wonder mixed with friendly arcade fun, rich cinematic soft volumetric lighting, crisp polished 3D illustrative game key art, excellent silhouette readability, generous negative space around title. Only text MARKET CAPTAINS; no extra captions, no brand sponsor badges, no UI screenshot, no photoreal humans. Entire image original composition, no resemblance to existing game characters. Opaque background.

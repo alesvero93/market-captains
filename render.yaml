@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: market-captains
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npx --yes pnpm@11.19.0 install --frozen-lockfile --prod=false && npx --yes pnpm@11.19.0 build
+    startCommand: node scripts/start.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.19.0
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATA_DIR
+        value: /tmp/liquidity-io
+      - key: RECORD_REPLAYS
+        value: "0"
+      - key: CMC_API_KEY
+        sync: false

@@ -1,0 +1,16 @@
+{
+  "project": "MARKET CAPTAINS",
+  "track": "Data and Visualisation",
+  "repositoryUrl": "",
+  "demoUrl": "",
+  "videoUrl": "",
+  "buidlUrl": "",
+  "socialPostUrl": "",
+  "apiFeedback": "Authenticated Basic key/info returned HTTP 200 with 15,000 monthly credits, 50 requests/minute and zero credit cost. Its current_day object reports credits_used but omits credits_left, unlike the documentation example. The adapter now applies its own 320/day ceiling minus account-wide daily usage when the provider does not supply daily remaining credits. Explicit documentation of optional quota fields would help fail-closed integrations.",
+  "humanPlaytestReport": "",
+  "campaignRegistration": {
+    "status": "user-confirmed",
+    "sameCmcEmail": true,
+    "note": "Confirmed by the user on 2026-09-27; account details not collected."
+  }
+}

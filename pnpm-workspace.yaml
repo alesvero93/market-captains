@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: false
+minimumReleaseAgeExclude:
+  - '@colyseus/core@0.18.16'
+  - '@colyseus/greeting-banner@4.0.3'
+  - '@colyseus/sdk@0.18.4'
+  - '@colyseus/shared-types@0.18.3'
+  - '@colyseus/ws-transport@0.18.3'
