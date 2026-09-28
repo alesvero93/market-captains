@@ -5,7 +5,7 @@ import { capVector, clamp, validateNodes, resolveContact } from './fields.js';
 import { randomStep, step } from './index.js';
 
 export const MATCH = Object.freeze({durationTicks: 18000, closeTicks: 3600, bankTicks: 90,
-  maxPlayers: 10, fragmentTarget: 150, fragmentCap: 260, pulseRange: 155, pulseCost: 25,
+  maxPlayers: 10, fragmentTarget: 80, fragmentCap: 140, pulseRange: 155, pulseCost: 25,
   pulseCooldown: 90, respawnTicks: 90, protectionTicks: 90});
 export const GATES: readonly Gate[] = Object.freeze([
   Object.freeze({id: 1, x: 105, y: 110, radius: 60}),
@@ -314,7 +314,7 @@ export function stepMatch(state:MatchState,actions:Readonly<Record<string,Action
     else{if(p.bankTicks>0)next.metrics.interruptedBanks++;p.bankTicks=0;}
   }
   const leader=leaderboard(next.players)[0];for(const p of next.players)p.whale=!!leader&&p.id===leader.id&&p.banked>=100&&!p.respawnTick;
-  if(next.tick%90===0)refill(next,next.surge?.stage==='active'?190:MATCH.fragmentTarget);
+  if(next.tick%90===0)refill(next,next.surge?.stage==='active'?110:MATCH.fragmentTarget);
   return next;
 }
 export function botAction(state:MatchState,p:Contestant):ActionInput {
