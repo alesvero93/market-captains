@@ -74,3 +74,10 @@ Nuova revisione: due finestre hacker di 60 secondi ciascuna (120 secondi massimi
 
 
 Planet layout update: BTC remains central and ETH retains its orbit. Each new arena selects 3–5 additional eligible planets, for 5–7 total. Seeded random coordinates replace the four fixed corners. Altcoin radii span 22–42 and influence radii 95–185, using relative logarithmic market capitalization; BTC (66/280) and ETH (45/205) remain visual anchors. Geometry stays fixed for a match except ETH orbit. Old caches lacking raw market cap use cap-derived gravity until fresh quotes arrive. Fields may overlap deliberately; solid cores, the entire ETH orbit and wallet approaches are protected. 55 tests pass, including 120 seeded layouts with all three counts, unique arrangements, cap ordering and full orbit collision checks. No extra API requests.
+
+
+## Single-player stability release — 28 September 2026
+
+Reported: a Brave desktop player experienced uncontrolled drift and jitter. Live probe accepted 177 of 179 sequential inputs over six seconds; snapshot intervals averaged 66 ms and peaked at 153 ms. This does not establish Render CPU congestion. Confirmed design weaknesses: combined gravity could overcome steering, drag was weak, and prediction reconciled a latest-input server rather than a one-command-per-tick simulation.
+
+Public mode now runs locally with three bots, fixed 30 Hz steps capped at three per render frame, pause on focus loss/guide, HUD updates at 5 Hz, capped combined field forces, and stronger idle braking. No gameplay WebSocket or server position corrections. CMC stays server-side; clients read cached normalized frames once per minute without triggering provider requests. Production arena matchmaking is disabled. Remaining risks: slow GPUs can still drop frames; local scores are not authoritative; Brave hardware acceleration and human playtesting remain to verify. Deployment requires pushing the prepared commit.

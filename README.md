@@ -1,3 +1,7 @@
+# Current release: single player
+
+The public preview runs one local player and three bots. Movement and scoring are simulated in the browser; no multiplayer connection is opened. Render serves the client and a cached normalized CMC market frame. SHARE GAME opens separate arenas. Multiplayer implementation and tests remain for future work, but production matchmaking is disabled. Scores are local and unverified.
+
 # MARKET CAPTAINS — playable arena preview
 
 Server-authoritative multiplayer arena: five to seven market planets (BTC central, ETH in a slow orbit), polarity currents, fragments, cargo mass, boost, pulse, 3-second bank channels, elimination/respawn, leaderboard, volatility surge and Market Close. At most 10 characters per room, with bots yielding slots to humans. The original field lab is development-only.

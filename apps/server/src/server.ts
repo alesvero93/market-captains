@@ -7,12 +7,13 @@ import { ArenaRoom } from './arena-room.js';
 import type { MarketSource } from './arena-room.js';
 import { clientEndpoints, originGuard } from './client-assets.js';
 
-export function createGameServer(options:{market?:MarketSource;botCount?:number;replayDirectory?:string;durationTicks?:number;clientDirectory?:string;publicOrigin?:string}={}) {
+export function createGameServer(options:{singlePlayer?:boolean;market?:MarketSource;botCount?:number;replayDirectory?:string;durationTicks?:number;clientDirectory?:string;publicOrigin?:string}={}) {
   const httpServer = createServer();
   const guard=options.publicOrigin?originGuard([options.publicOrigin]):()=>undefined;
   const server = new Server({transport: new WebSocketTransport({server: httpServer, maxPayload: 2048,beforeUpgrade:guard}),
     greet: false, gracefullyShutdown: false});
-  server.router = createRouter({...options.clientDirectory?clientEndpoints(options.clientDirectory,options.publicOrigin??'http://127.0.0.1:2567'):{},health: createEndpoint('/health', {method: 'GET'}, async () =>
+  server.router = createRouter({...options.clientDirectory?clientEndpoints(options.clientDirectory,options.publicOrigin??'http://127.0.0.1:2567'):{},market: createEndpoint('/api/market', {method:'GET'}, async () =>
+    new Response(JSON.stringify(options.market?.frame()??null),{headers:{'Content-Type':'application/json','Cache-Control':'public, max-age=30'}})),health: createEndpoint('/health', {method: 'GET'}, async () =>
     ({status: 'ok', milestone: 'M2-M5', marketMode: options.market?.frame().mode??'SYNTHETIC', cmcCalls: options.market?.stats?.().requests??0,
       budget:options.market?.stats?.()??null}))},{onRequest:guard,onResponse:async response=>{
         // Explicit lengths keep local browser forwarding and reverse proxies from waiting on chunked responses.
@@ -32,6 +33,6 @@ export function createGameServer(options:{market?:MarketSource;botCount?:number;
     }
     override onDispose():void {super.onDispose();if(this.counted){activeRooms--;this.counted=false;}}
   }
-  server.define(ARENA_ROOM_NAME,ConfiguredArena);
+  if(!options.singlePlayer)server.define(ARENA_ROOM_NAME,ConfiguredArena);
   return {server, httpServer};
 }

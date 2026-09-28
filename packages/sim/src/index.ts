@@ -7,6 +7,7 @@ export { CONFIG } from './config.js';
 export { SYNTHETIC_NODES, boundedNoise, fieldAt, validateNodes } from './fields.js';
 export * from './match.js';
 export * from './prediction.js';
+export * from './solo.js';
 export interface SimInput extends MovementInput { polarity?: Polarity; thrustScale?: number; arcade?: boolean }
 export interface SimState { tick: number; seed: number; rngState: number; player: PlayerState; nodes: readonly MarketNode[] }
 
@@ -29,7 +30,8 @@ export function accelerationAt(state: SimState, input: SimInput): Vector {
   const move = normalizeMovement(input.moveX, input.moveY);
   const polarity = input.polarity ?? state.player.polarity;
   const thrust = CONFIG.acceleration * (input.thrustScale ?? 1);
-  const drag = input.arcade ? 1.8 : CONFIG.drag;
+  const steering=Math.hypot(move.moveX,move.moveY)>.05;
+  const drag = input.arcade ? (steering?1.8:4) : CONFIG.drag;
   let x = move.moveX * thrust - drag * state.player.vx;
   let y = move.moveY * thrust - drag * state.player.vy;
   let field = {x:0,y:0};
@@ -40,7 +42,7 @@ export function accelerationAt(state: SimState, input: SimInput): Vector {
   }
   // Gameplay controls must overcome even overlapping inward market currents.
   // Cap the combined field, rather than each planet independently.
-  if(input.arcade)field=capVector(field,thrust*.5);
+  if(input.arcade)field=capVector(field,thrust*(steering?.5:.2));
   x += field.x; y += field.y;
   return capVector({x, y}, CONFIG.maxAcceleration);
 }

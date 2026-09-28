@@ -8,4 +8,4 @@ for (const file of files('packages/sim/src')) {
 for (const file of files('apps/client/src')) {
   if (/CMC_PRO_API_KEY|pro-api\.coinmarketcap/.test(readFileSync(file,'utf8'))) throw new Error(`Client boundary violation: ${file}`);
 }
-console.log('Boundaries OK: pure simulation, client motion prediction only, no CMC client integration.');
+console.log('Boundaries OK: pure simulation, local single-player simulation, no CMC client integration.');

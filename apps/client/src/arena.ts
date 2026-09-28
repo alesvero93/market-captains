@@ -1,24 +1,24 @@
 import brandLogo from './assets/market-captains-logo.png?inline';
 import Phaser from 'phaser';
-import { Client, type Room } from '@colyseus/sdk';
-import { ARENA_SCHEMA_VERSION, ARENA_ROOM_NAME, normalizeMovement, AVATARS, type ArenaInput, type ArenaSnapshot, type Contestant, type Polarity } from '@liquidity/shared';
-import { leaderboard, totalScore, MotionPredictor, SnapshotBuffer, playerRadius } from '@liquidity/sim';
+
+import { ARENA_SCHEMA_VERSION, ARENA_ROOM_NAME, normalizeMovement, AVATARS, type ArenaInput, type ArenaSnapshot, type Contestant, type MarketFrame, type Polarity } from '@liquidity/shared';
+import { leaderboard, totalScore, SoloArena, syntheticMarket, playerRadius } from '@liquidity/sim';
 import './arena.css';
 import { PORTRAITS } from './portraits.js';
 import { opportunity } from '@liquidity/sim';
 import { installGuide, guideOpen } from './guide.js';
-const coinUrls=import.meta.glob('./assets/coins/*.svg',{eager:true,query:'?url',import:'default'}) as Record<string,string>;
+const coinUrls=import.meta.glob('./assets/coins/*.svg',{eager:true,query:'?inline',import:'default'}) as Record<string,string>;
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <header><a class="logo" href="/" aria-label="Market Captains home"><img class="brand-logo" src="${brandLogo}" alt="MARKET CAPTAINS" width="240" height="60" /></a><span>THE MARKET IS THE MAP</span><a href="https://coinmarketcap.com/" target="_blank" rel="noopener">Data by CoinMarketCap ↗</a></header>
-<main><div class="headline"><div><p class="overline">MULTIPLAYER ARENA / PREVIEW</p><h1>Collect. Grow. Protect your wallet.</h1></div><div class="clock" id="clock">10:00</div></div>
+<main><div class="headline"><div><p class="overline">SINGLE PLAYER / LOCAL SIMULATION</p><h1>Collect. Grow. Protect your wallet.</h1></div><div class="clock" id="clock">10:00</div></div>
 <div class="market"><span id="network" role="status">Choose your captain</span><span id="market">SYNTHETIC</span><span id="population"></span></div>
 <section class="layout"><div class="play"><div id="arena" aria-label="Arena: WASD or arrows, Q toggles LONG SHORT, Shift boosts, Space pulses. Stand still in a wallet to deposit." tabindex="0"></div><div id="notice" role="status">Collect glowing fragments. Stop inside a green wallet for 3 seconds to deposit automatically.</div></div>
 <aside><p class="overline">YOUR CAPTAIN</p><div class="scores"><div><span>CARGO · AT RISK</span><strong id="cargo">0</strong></div><div><span>IN YOUR WALLET</span><strong id="banked">0</strong></div></div><label>Energy <meter id="energy" min="0" max="100" value="100"></meter></label><label>Integrity <meter id="hp" min="0" max="100" value="100"></meter></label><label>Deposit <progress id="bank" max="90" value="0"></progress></label><p class="overline">LEADERBOARD</p><ol id="leaders"></ol><button id="again" hidden>New match</button><p class="hint">A fuller wallet makes a rounder captain. Cargo weighs you down and is lost on elimination. Banked points stay yours.</p></aside></section>
-<section class="controls" aria-label="Controls"><div class="polarities"><button data-polarity="1" aria-pressed="true">△ LONG</button><button data-polarity="-1">▽ SHORT</button></div><button id="boost">BOOST <kbd>Shift</kbd></button><button id="pulse">PULSE <kbd>Space</kbd></button><button id="invite">INVITE A FRIEND</button><button id="sound" aria-pressed="false">Audio off</button></section>
-<div class="touch"><div id="stick" aria-label="Joystick touch"><span>✥</span></div><span>Drag to move · tap LONG or SHORT</span></div><footer><span>WASD / ARROWS · Q TOGGLES LONG/SHORT</span><span id="data-note">Synthetic data: no CMC calls.</span><span>PLAYTEST · MAX 10</span></footer></main>`;
+<section class="controls" aria-label="Controls"><div class="polarities"><button data-polarity="1" aria-pressed="true">△ LONG</button><button data-polarity="-1">▽ SHORT</button></div><button id="boost">BOOST <kbd>Shift</kbd></button><button id="pulse">PULSE <kbd>Space</kbd></button><button id="invite">SHARE GAME</button><button id="sound" aria-pressed="false">Audio off</button></section>
+<div class="touch"><div id="stick" aria-label="Joystick touch"><span>✥</span></div><span>Drag to move · tap LONG or SHORT</span></div><footer><span>WASD / ARROWS · Q TOGGLES LONG/SHORT</span><span id="data-note">Synthetic data: no CMC calls.</span><span>SINGLE PLAYER · 3 BOTS</span></footer></main>`;
 document.querySelector('.controls')!.insertAdjacentHTML('afterend',`<a id="invite-link" hidden></a><p id="flow-status" class="flow-status" role="status">LONG: a rising node pushes its current outward. SHORT reverses the current.</p><details class="explain"><summary>How the market changes the map</summary><p>Market cap sets gravity; volume distributes fragments; one-hour momentum directs the current. Volatility comes from prices sampled every five minutes, after warm-up.</p><label for="inspect-node">Inspect a node</label><select id="inspect-node" aria-label="Node to inspect"></select><p id="inspect-values"></p><p>LONG: outward current at rising nodes, inward at falling nodes. SHORT reverses it. Gravity always remains. These are game indices, not percentage changes, bets or forecasts. SYNTHETIC values are illustrative scenarios.</p></details>`);
-document.querySelector('main')!.insertAdjacentHTML('beforebegin',`<section id="start-screen" class="start-screen"><div class="start-copy"><p class="overline">A SMALL UNIVERSE. A VERY BIG WALLET.</p><h1>The market moves.<br>Can you ride it?</h1><p>Dodge the Bitcoin sun, ride the currents and fill your wallet.<br>Ten-minute matches. Up to 10 friends and bots.</p><ul><li><b>Move</b> with WASD or arrows</li><li><b>Q</b> toggles LONG / SHORT · <b>Space</b> pushes rivals away</li><li><b>Shift</b> boosts · stop in wallets to deposit</li></ul><p class="hint">Market data powers the map. No real money. No crypto wallet connection.</p></div><form id="start-form" class="pilot-card"><p class="overline">CHOOSE YOUR MEME CREW</p><div id="avatars" class="avatars">${AVATARS.map((name,i)=>`<button type="button" data-avatar="${i}" aria-label="${name}" aria-pressed="${i===0}"><img src="${PORTRAITS[i]}" alt=""/><span>${name}</span></button>`).join('')}</div><label for="pilot-name">Name or invented ticker</label><input id="pilot-name" maxlength="16" placeholder="MOONBEAN" autocomplete="off" value="MOONBEAN"/><button id="play" type="submit" class="play-button">ENTER THE ARENA →</button><button id="fresh-room" type="button" hidden>FIND ANOTHER ARENA</button><p id="start-status" role="status">Choose a captain: all avatars have the same abilities.</p></form></section>`);
+document.querySelector('main')!.insertAdjacentHTML('beforebegin',`<section id="start-screen" class="start-screen"><div class="start-copy"><p class="overline">A SMALL UNIVERSE. A VERY BIG WALLET.</p><h1>The market moves.<br>Can you ride it?</h1><p>Dodge the Bitcoin sun, ride the currents and fill your wallet.<br>Single player. Three bots. Smooth local simulation.</p><ul><li><b>Move</b> with WASD or arrows</li><li><b>Q</b> toggles LONG / SHORT · <b>Space</b> pushes rivals away</li><li><b>Shift</b> boosts · stop in wallets to deposit</li></ul><p class="hint">Market data powers the map. No real money. No crypto wallet connection.</p></div><form id="start-form" class="pilot-card"><p class="overline">CHOOSE YOUR MEME CREW</p><div id="avatars" class="avatars">${AVATARS.map((name,i)=>`<button type="button" data-avatar="${i}" aria-label="${name}" aria-pressed="${i===0}"><img src="${PORTRAITS[i]}" alt=""/><span>${name}</span></button>`).join('')}</div><label for="pilot-name">Name or invented ticker</label><input id="pilot-name" maxlength="16" placeholder="MOONBEAN" autocomplete="off" value="MOONBEAN"/><button id="play" type="submit" class="play-button">ENTER THE ARENA →</button><button id="fresh-room" type="button" hidden>FIND ANOTHER ARENA</button><p id="start-status" role="status">Choose a captain: all avatars have the same abilities.</p></form></section>`);
 document.querySelector('.play')!.insertAdjacentHTML('beforeend',`<section id="opportunities" aria-label="Gameplay opportunities"><p class="overline">OPPORTUNITIES <span> / GAMEPLAY</span></p><p id="opportunity-text">Join an arena to read the currents.</p><small id="market-update">Market cap → gravity · volume → fragments · momentum → current · volatility → turbulence</small></section>`);
 document.querySelector<HTMLElement>('main')!.hidden=true;
 let avatar=0;
@@ -27,12 +27,12 @@ const el = <T extends HTMLElement = HTMLElement>(id:string)=>document.getElement
 el<HTMLFormElement>('start-form').onsubmit=e=>{e.preventDefault();void connect();};
 el('play').onclick=e=>{e.preventDefault();void connect();};
 let game:Phaser.Game|undefined;
-let connectionGeneration=0;
+
 el("fresh-room").onclick=()=>{history.replaceState(null,"",location.pathname);void connect();};
-let room:Room|undefined, latest:ArenaSnapshot|undefined, previous:ArenaSnapshot|undefined;
-const predictor=new MotionPredictor(); const renderBuffer=new SnapshotBuffer();
+let solo:SoloArena|undefined, latest:ArenaSnapshot|undefined, previous:ArenaSnapshot|undefined;
+let cachedMarket:MarketFrame=syntheticMarket(); let accumulator=0; let lastHud=0;
 let predicted:Contestant|undefined, seq=0, clientTick=0, receivedAt=0;
-let connected=false, connecting=false, polarity:Polarity=1, pulse=false, audioEnabled=false;
+let connected=false, polarity:Polarity=1, pulse=false, audioEnabled=false;
 let audio:AudioContext|undefined, lastEventTick=-1;
 const keys=new Set<string>(); const held=new Set<string>(); let joystick={moveX:0,moveY:0};
 function select(value:Polarity){polarity=value;document.querySelectorAll<HTMLButtonElement>('[data-polarity]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.polarity)===value)));}
@@ -53,37 +53,44 @@ stick.onpointerdown=e=>{stickPointer=e.pointerId;stick.setPointerCapture(e.point
 el('sound').onclick=()=>{audioEnabled=!audioEnabled;if(audioEnabled){audio??=new AudioContext();void audio.resume();}el('sound').textContent=audioEnabled?'Audio on':'Audio off';el('sound').setAttribute('aria-pressed',String(audioEnabled));};
 function tone(hz:number){if(!audioEnabled||!audio)return;const o=audio.createOscillator(),g=audio.createGain();o.frequency.value=hz;g.gain.setValueAtTime(.035,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.15);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.15);}
 function status(message:string){el('network').textContent=message;el('start-status').textContent=message;}
-async function connect(){if(connecting)return;const generation=++connectionGeneration;connecting=true;connected=false;release();el<HTMLButtonElement>('play').disabled=true;el('fresh-room').hidden=true;status('Connecting… a cold start may take a minute.');let deadline:ReturnType<typeof setTimeout>|undefined;let expired=false;try{
-  if(room)await room.leave();
-  const client=new Client(import.meta.env.VITE_SERVER_URL??(!import.meta.env.DEV?location.origin:`${location.protocol==='https:'?'wss':'ws'}://${location.hostname}:2567`));
-  const invite=new URLSearchParams(location.search).get('room');
-  const identity={name:el<HTMLInputElement>('pilot-name').value,avatar};
-  const joining=invite?client.joinById(invite,identity):client.joinOrCreate(ARENA_ROOM_NAME,identity);
-  void joining.then(joined=>{if(expired)void joined.leave().catch(()=>{});},()=>{});
-  room=await Promise.race([joining,new Promise<never>((_,reject)=>{deadline=setTimeout(()=>{expired=true;reject(Error('Connection deadline'));},65000);})]);
-  if(deadline)clearTimeout(deadline);
+async function refreshMarket(){
+  try{
+    const response=await fetch('/api/market',{signal:AbortSignal.timeout(5000)});
+    if(!response.ok)throw Error('Market unavailable');
+    const frame=await response.json() as MarketFrame;
+    if(!frame||!Array.isArray(frame.nodes)||!frame.nodes.length)throw Error('Invalid market');
+    // Validate through the pure simulation before applying external data.
+    const check=new SoloArena(1,'check',0,frame);check.snapshot();
+    cachedMarket=frame;solo?.market(frame);
+  }catch{
+    if(cachedMarket.sourceTime!==null){cachedMarket={...cachedMarket,mode:'STALE',message:'Market connection delayed · local play continues'};solo?.market(cachedMarket);}
+  }
+}
+void refreshMarket();setInterval(()=>void refreshMarket(),60000);
+async function connect(){
+  release();accumulator=0;seq=clientTick=0;lastEventTick=-1;lastHud=0;
+  const seed=crypto.getRandomValues(new Uint32Array(1))[0]!;
+  solo=new SoloArena(seed,el<HTMLInputElement>('pilot-name').value.slice(0,16)||'CAPTAIN',avatar,cachedMarket);
+  latest=solo.snapshot();previous=undefined;predicted=latest.players.find(p=>p.id==='solo');
   el('start-screen').hidden=true;document.querySelector<HTMLElement>('main')!.hidden=false;
-  game??=createGame();game.scale.refresh();el('arena').focus();
-  room.reconnection.minUptime=0;room.reconnection.maxEnqueuedMessages=0;
-  seq=0;clientTick=0;predictor.reset();renderBuffer.reset();latest=previous=undefined;predicted=undefined;lastEventTick=-1;connected=true;status('● Connected');
-  room.onMessage('arena',(s:ArenaSnapshot)=>{if(generation!==connectionGeneration||s.schemaVersion!==ARENA_SCHEMA_VERSION||latest&&s.tick<=latest.tick)return;
-    previous=latest;latest=s;receivedAt=performance.now();renderBuffer.push(s,receivedAt);predictor.accept(s);predicted=predictor.player;
-    updateHud(s);for(const event of s.events)if(event.tick>lastEventTick&&event.playerId===s.selfId)tone(event.type==='bank'?660:event.type==='elimination'?110:330);lastEventTick=s.tick;
-  });
-  room.onDrop(()=>{if(generation!==connectionGeneration)return;connected=false;release();status('Connection lost · reconnecting…');});
-  room.onReconnect(()=>{if(generation!==connectionGeneration)return;connected=true;seq=0;clientTick=0;predictor.reset();renderBuffer.reset();predicted=undefined;latest=previous=undefined;status('● Reconnected');});
-  room.onLeave(()=>{if(generation!==connectionGeneration)return;connected=false;status('Disconnected');el<HTMLButtonElement>('again').hidden=false;});
-  room.onError(()=>{if(generation===connectionGeneration)status('Connection error');});
-}catch{status('Arena unavailable or full. A cold start may take a minute. Retry or find another arena.');el<HTMLButtonElement>('again').hidden=false;el('fresh-room').hidden=false;}finally{if(deadline)clearTimeout(deadline);connecting=false;el<HTMLButtonElement>('play').disabled=false;}}
-el('again').onclick=()=>{history.replaceState(null,'',location.pathname);void connect();};
-el('invite').onclick=async()=>{if(!room)return;const url=new URL(location.href);url.search='';url.searchParams.set('room',room.roomId);const link=el<HTMLAnchorElement>('invite-link');link.href=url.href;link.textContent=`Same arena: ${url.href}`;link.hidden=false;try{await navigator.clipboard.writeText(url.href);el('notice').textContent='Link copied: join the same arena before the match ends.';}catch{el('notice').textContent=`Friend invite: ${url.href}`;}};
-setInterval(()=>{if(!connected||!room||!latest||latest.phase==='finished')return;
-  if(guideOpen())release();
+  game??=createGame();game.scale.refresh();el('arena').focus();connected=true;
+  status('● Single player · local');updateHud(latest);
+}
+el('again').onclick=()=>void connect();
+el('invite').onclick=async()=>{
+  const url=location.origin;const link=el<HTMLAnchorElement>('invite-link');link.href=url;link.textContent=`Single-player game: ${url}`;link.hidden=false;
+  try{await navigator.clipboard.writeText(url);}catch{/* Visible link remains available. */}
+  el('notice').textContent='Share this game: each player has their own solo arena.';
+};
+function localTick(){
+  if(!connected||!solo||!latest||latest.phase==='finished')return;
   const down=(...ks:string[])=>ks.some(k=>keys.has(k))?1:0;
   const movement=normalizeMovement(down('d','arrowright')-down('a','arrowleft')+joystick.moveX,down('s','arrowdown')-down('w','arrowup')+joystick.moveY);
-  const input:ArenaInput={schemaVersion:ARENA_SCHEMA_VERSION,seq:seq++,clientTick:clientTick++,polarity,...movement,boost:keys.has('shift')||held.has('boost'),pulse,bank:!guideOpen()&&Math.hypot(movement.moveX,movement.moveY)<.15};pulse=false;
-  room.send('input',input);predictor.push(input);predicted=predictor.player;
-},1000/30);
+  const input:ArenaInput={schemaVersion:ARENA_SCHEMA_VERSION,seq:seq++,clientTick:clientTick++,polarity,...movement,boost:keys.has('shift')||held.has('boost'),pulse,bank:Math.hypot(movement.moveX,movement.moveY)<.15};pulse=false;
+  previous=latest;latest=solo.step(input);predicted=latest.players.find(p=>p.id==='solo');
+  if(latest.tick-lastHud>=6||latest.phase==='finished'){updateHud(latest);lastHud=latest.tick;}
+  for(const event of latest.events)if(event.tick>lastEventTick&&event.playerId==='solo')tone(event.type==='bank'?660:event.type==='elimination'?110:330);lastEventTick=latest.tick;
+}
 function updateInspector(s:ArenaSnapshot){const select=el<HTMLSelectElement>('inspect-node');const roster=s.nodes.map(n=>n.id).join(',');if(select.dataset.roster!==roster){select.replaceChildren();select.dataset.roster=roster;for(const n of s.nodes){const o=document.createElement('option');o.value=String(n.id);o.textContent=n.symbol;select.append(o);}}const n=s.nodes.find(n=>String(n.id)===select.value);if(n)el('inspect-values').textContent=`${n.symbol} · momentum ${n.momentumN.toFixed(2)} / ±1 · turbulence ${n.volatilityN.toFixed(2)} / 1 · gravity ${(n.gravity/1000000).toFixed(2)} M · ${s.marketMode}`;}
 el('inspect-node').onchange=()=>{if(latest)updateInspector(latest);};
 let updateMessage='Market cap → gravity · volume → fragments · momentum → current · volatility → turbulence';
@@ -95,7 +102,7 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
   }
   el('market-update').textContent=updateMessage;const self=s.players.find(p=>p.id===s.selfId),seconds=Math.ceil(s.remainingTicks/30);el('clock').textContent=`${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
   el('market').textContent=s.marketMode;el('data-note').textContent=s.marketMessage+(s.marketSourceTime?` · source ${new Date(s.marketSourceTime).toLocaleTimeString('en-US')}`:'');
-  el('population').dataset.hacker=String(s.players.some(p=>p.hacker));el('population').textContent=`${s.players.filter(p=>!p.bot).length} human(s) · ${s.players.filter(p=>p.bot&&!p.hacker).length} bots${s.players.some(p=>p.hacker)?' · HACKER':''}`;
+  el('population').dataset.hacker=String(s.players.some(p=>p.hacker));el('population').textContent=`Single player · ${s.players.filter(p=>p.bot&&!p.hacker).length} bots${s.players.some(p=>p.hacker)?' · HACKER':''}`;
   if(self){const node=[...s.nodes].sort((a,b)=>Math.hypot(self.x-a.x,self.y-a.y)-Math.hypot(self.x-b.x,self.y-b.y))[0];if(node){const active=Math.hypot(self.x-node.x,self.y-node.y)<node.fieldRadius;el('flow-status').textContent=`${polarity===1?'LONG':'SHORT'} · ${node.symbol} ${node.momentumN>=0?'↑':'↓'} · ${active?(Math.abs(node.momentumN)<.02?'almost no current':polarity*node.momentumN>0?'OUTWARD CURRENT →':'INWARD CURRENT ←'):'enter the halo to feel the current'} · Q to reverse`;}el('cargo').textContent=String(self.cargo);el('banked').textContent=String(self.banked);el<HTMLMeterElement>('energy').value=self.energy;el<HTMLMeterElement>('hp').value=self.integrity;el<HTMLProgressElement>('bank').value=self.bankTicks;
     el('notice').textContent=self.respawnTick?`Respawning in ${Math.max(0,Math.ceil((self.respawnTick-s.tick)/30))} s · wallet safe`:s.phase==='finished'?`Match over · score ${totalScore(self)}`:s.phase==='closing'?'MARKET CLOSE · reach the central circle':self.bankTicks?`Depositing · ${(self.bankTicks/30).toFixed(1)} / 3 s`:s.surge?`VOLATILITY SURGE · ${s.nodes.find(n=>n.id===s.surge!.nodeId)?.symbol} · ${s.surge.stage==='telegraph'?'incoming':s.surge.stage==='active'?'active':'fading'}`:'Collect fragments. Stop in green wallets for 3 seconds to deposit automatically.';
   }
@@ -105,14 +112,17 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 class ArenaScene extends Phaser.Scene {
   private visualSelf:{x:number;y:number}|undefined;private g!:Phaser.GameObjects.Graphics;private sprites=new Map<string,Phaser.GameObjects.Image>();private labels=new Map<string,Phaser.GameObjects.Text>();
-  preload(){for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.svg(`coin-${symbol}`,url,{width:160,height:160});}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
+  preload(){for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.image(`coin-${symbol}`,url);}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
   create(){this.g=this.add.graphics();}
   sprite(id:string,texture:string,x:number,y:number,size:number){let item=this.sprites.get(id);if(!item){item=this.add.image(x,y,texture);this.sprites.set(id,item);}item.setTexture(texture).setPosition(x,y).setDisplaySize(size,size).setVisible(true);}
 
   label(id:string,text:string,x:number,y:number,color='#8ea3b6',size=13){let l=this.labels.get(id);if(!l){l=this.add.text(x,y,text,{fontFamily:'monospace',fontSize:size,color}).setOrigin(.5);this.labels.set(id,l);}l.setText(text).setPosition(x,y).setColor(color).setVisible(true);}
-  override update(_time:number,delta:number){const g=this.g;if(!g)return;g.clear();for(const item of this.sprites.values())item.setVisible(false);for(const l of this.labels.values())l.setVisible(false);g.fillStyle(0x080f1b).fillRect(0,0,1440,900);g.lineStyle(1,0x193040,.5);for(let x=0;x<1440;x+=60)g.lineBetween(x,0,x,900);for(let y=0;y<900;y+=60)g.lineBetween(0,y,1440,y);
+  override update(_time:number,delta:number){
+    if(document.hidden||guideOpen()||!document.hasFocus()){release();accumulator=0;if(connected)status('Paused · click the arena to resume');}
+    else if(connected){status('● Single player · local');accumulator+=Math.min(delta,100);let steps=0;while(accumulator>=1000/30&&steps++<3){localTick();accumulator-=1000/30;}}
+    const g=this.g;if(!g)return;g.clear();for(const item of this.sprites.values())item.setVisible(false);for(const l of this.labels.values())l.setVisible(false);g.fillStyle(0x080f1b).fillRect(0,0,1440,900);g.lineStyle(1,0x193040,.5);for(let x=0;x<1440;x+=60)g.lineBetween(x,0,x,900);for(let y=0;y<900;y+=60)g.lineBetween(0,y,1440,y);
     const s=latest;if(!s){this.label('loading','CHOOSE YOUR CAPTAIN',720,450,'#72efd0',22);return;}
-    const rendered=renderBuffer.sample(performance.now()); const renderFrom=rendered?.before??s, renderTo=rendered?.after??s; const alpha=rendered?.alpha??1;
+    const renderFrom=previous??s, renderTo=s; const alpha=Math.min(1,accumulator/(1000/30));
     for(const target of renderTo.nodes){const old=renderFrom.nodes.find(n=>n.id===target.id);const n=old?{...target,x:old.x+(target.x-old.x)*alpha,y:old.y+(target.y-old.y)*alpha}:target;const c=n.momentumN>=0?0x4bb9a1:0xc980ed;g.fillStyle(c,n.gravity>0?.035:.01).fillCircle(n.x,n.y,n.fieldRadius);g.lineStyle(1,c,n.gravity>0?.2:.06).strokeCircle(n.x,n.y,n.fieldRadius);g.lineStyle(2,c,.65).strokeCircle(n.x,n.y,n.radius+5);g.fillStyle(0x101e2b).fillCircle(n.x,n.y,n.radius);
       // Quiet volume pulses and irregular volatility halos expose the data mapping.
       if(n.volumeN!==undefined&&n.gravity>0){const phase=reduced?.5:(s.tick/90+n.id%7/7)%1;g.lineStyle(1,0x70dccd,(1-phase)*(.08+n.volumeN*.25)).strokeCircle(n.x,n.y,n.radius+10+phase*26);}
