@@ -1,6 +1,25 @@
 import type { ArenaInput, ArenaSnapshot, Contestant } from '@liquidity/shared';
 import { predictMotion } from './match.js';
 
+/** Render remote objects behind receipt time to absorb uneven network arrivals. */
+export class SnapshotBuffer {
+  private frames:{snapshot:ArenaSnapshot;time:number}[]=[];
+  reset(){this.frames=[];}
+  push(snapshot:ArenaSnapshot,time:number){
+    if(this.frames.length&&this.frames[0]!.snapshot.matchId!==snapshot.matchId)this.reset();
+    this.frames.push({snapshot,time});if(this.frames.length>12)this.frames.shift();
+  }
+  sample(now:number){
+    if(!this.frames.length)return undefined;
+    const target=now-120;let before=this.frames[0]!;
+    for(const after of this.frames){
+      if(after.time>=target)return {before:before.snapshot,after:after.snapshot,alpha:Math.max(0,Math.min(1,(target-before.time)/Math.max(1,after.time-before.time)))};
+      before=after;
+    }
+    return {before:before.snapshot,after:before.snapshot,alpha:1};
+  }
+}
+
 /** Bounded speculative motion; scores, pickups and health always come from the server. */
 export class MotionPredictor {
   player:Contestant|undefined;

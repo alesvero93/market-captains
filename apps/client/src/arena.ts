@@ -2,7 +2,7 @@ import brandLogo from './assets/market-captains-logo.png?inline';
 import Phaser from 'phaser';
 import { Client, type Room } from '@colyseus/sdk';
 import { ARENA_SCHEMA_VERSION, ARENA_ROOM_NAME, normalizeMovement, AVATARS, type ArenaInput, type ArenaSnapshot, type Contestant, type Polarity } from '@liquidity/shared';
-import { leaderboard, totalScore, MotionPredictor, playerRadius } from '@liquidity/sim';
+import { leaderboard, totalScore, MotionPredictor, SnapshotBuffer, playerRadius } from '@liquidity/sim';
 import './arena.css';
 import { PORTRAITS } from './portraits.js';
 import { opportunity } from '@liquidity/sim';
@@ -30,7 +30,7 @@ let game:Phaser.Game|undefined;
 let connectionGeneration=0;
 el("fresh-room").onclick=()=>{history.replaceState(null,"",location.pathname);void connect();};
 let room:Room|undefined, latest:ArenaSnapshot|undefined, previous:ArenaSnapshot|undefined;
-const predictor=new MotionPredictor();
+const predictor=new MotionPredictor(); const renderBuffer=new SnapshotBuffer();
 let predicted:Contestant|undefined, seq=0, clientTick=0, receivedAt=0;
 let connected=false, connecting=false, polarity:Polarity=1, pulse=false, audioEnabled=false;
 let audio:AudioContext|undefined, lastEventTick=-1;
@@ -38,6 +38,7 @@ const keys=new Set<string>(); const held=new Set<string>(); let joystick={moveX:
 function select(value:Polarity){polarity=value;document.querySelectorAll<HTMLButtonElement>('[data-polarity]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.polarity)===value)));}
 document.querySelectorAll<HTMLButtonElement>('[data-polarity]').forEach(b=>b.onclick=()=>select(Number(b.dataset.polarity) as Polarity));
 const controlKeys=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift',' ','q'];
+el('arena').addEventListener('pointerdown',()=>el('arena').focus({preventScroll:true}));
 window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(guideOpen()||!connected||!controlKeys.includes(k)||(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement||e.target instanceof HTMLTextAreaElement))return;e.preventDefault();keys.add(k);if(k===' '&&!e.repeat)pulse=true;if(k==='q'&&!e.repeat)select(polarity===1?-1:1);});
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 function release(){keys.clear();held.clear();pulse=false;joystick={moveX:0,moveY:0};}
@@ -64,13 +65,13 @@ async function connect(){if(connecting)return;const generation=++connectionGener
   el('start-screen').hidden=true;document.querySelector<HTMLElement>('main')!.hidden=false;
   game??=createGame();game.scale.refresh();el('arena').focus();
   room.reconnection.minUptime=0;room.reconnection.maxEnqueuedMessages=0;
-  seq=0;clientTick=0;predictor.reset();latest=previous=undefined;predicted=undefined;lastEventTick=-1;connected=true;status('● Connected');
+  seq=0;clientTick=0;predictor.reset();renderBuffer.reset();latest=previous=undefined;predicted=undefined;lastEventTick=-1;connected=true;status('● Connected');
   room.onMessage('arena',(s:ArenaSnapshot)=>{if(generation!==connectionGeneration||s.schemaVersion!==ARENA_SCHEMA_VERSION||latest&&s.tick<=latest.tick)return;
-    previous=latest;latest=s;receivedAt=performance.now();predictor.accept(s);predicted=predictor.player;
+    previous=latest;latest=s;receivedAt=performance.now();renderBuffer.push(s,receivedAt);predictor.accept(s);predicted=predictor.player;
     updateHud(s);for(const event of s.events)if(event.tick>lastEventTick&&event.playerId===s.selfId)tone(event.type==='bank'?660:event.type==='elimination'?110:330);lastEventTick=s.tick;
   });
   room.onDrop(()=>{if(generation!==connectionGeneration)return;connected=false;release();status('Connection lost · reconnecting…');});
-  room.onReconnect(()=>{if(generation!==connectionGeneration)return;connected=true;seq=0;clientTick=0;predictor.reset();predicted=undefined;latest=previous=undefined;status('● Reconnected');});
+  room.onReconnect(()=>{if(generation!==connectionGeneration)return;connected=true;seq=0;clientTick=0;predictor.reset();renderBuffer.reset();predicted=undefined;latest=previous=undefined;status('● Reconnected');});
   room.onLeave(()=>{if(generation!==connectionGeneration)return;connected=false;status('Disconnected');el<HTMLButtonElement>('again').hidden=false;});
   room.onError(()=>{if(generation===connectionGeneration)status('Connection error');});
 }catch{status('Arena unavailable or full. A cold start may take a minute. Retry or find another arena.');el<HTMLButtonElement>('again').hidden=false;el('fresh-room').hidden=false;}finally{if(deadline)clearTimeout(deadline);connecting=false;el<HTMLButtonElement>('play').disabled=false;}}
@@ -111,7 +112,8 @@ class ArenaScene extends Phaser.Scene {
   label(id:string,text:string,x:number,y:number,color='#8ea3b6',size=13){let l=this.labels.get(id);if(!l){l=this.add.text(x,y,text,{fontFamily:'monospace',fontSize:size,color}).setOrigin(.5);this.labels.set(id,l);}l.setText(text).setPosition(x,y).setColor(color).setVisible(true);}
   override update(_time:number,delta:number){const g=this.g;if(!g)return;g.clear();for(const item of this.sprites.values())item.setVisible(false);for(const l of this.labels.values())l.setVisible(false);g.fillStyle(0x080f1b).fillRect(0,0,1440,900);g.lineStyle(1,0x193040,.5);for(let x=0;x<1440;x+=60)g.lineBetween(x,0,x,900);for(let y=0;y<900;y+=60)g.lineBetween(0,y,1440,y);
     const s=latest;if(!s){this.label('loading','CHOOSE YOUR CAPTAIN',720,450,'#72efd0',22);return;}
-    for(const n of s.nodes){const c=n.momentumN>=0?0x4bb9a1:0xc980ed;g.fillStyle(c,n.gravity>0?.035:.01).fillCircle(n.x,n.y,n.fieldRadius);g.lineStyle(1,c,n.gravity>0?.2:.06).strokeCircle(n.x,n.y,n.fieldRadius);g.lineStyle(2,c,.65).strokeCircle(n.x,n.y,n.radius+5);g.fillStyle(0x101e2b).fillCircle(n.x,n.y,n.radius);
+    const rendered=renderBuffer.sample(performance.now()); const renderFrom=rendered?.before??s, renderTo=rendered?.after??s; const alpha=rendered?.alpha??1;
+    for(const target of renderTo.nodes){const old=renderFrom.nodes.find(n=>n.id===target.id);const n=old?{...target,x:old.x+(target.x-old.x)*alpha,y:old.y+(target.y-old.y)*alpha}:target;const c=n.momentumN>=0?0x4bb9a1:0xc980ed;g.fillStyle(c,n.gravity>0?.035:.01).fillCircle(n.x,n.y,n.fieldRadius);g.lineStyle(1,c,n.gravity>0?.2:.06).strokeCircle(n.x,n.y,n.fieldRadius);g.lineStyle(2,c,.65).strokeCircle(n.x,n.y,n.radius+5);g.fillStyle(0x101e2b).fillCircle(n.x,n.y,n.radius);
       // Quiet volume pulses and irregular volatility halos expose the data mapping.
       if(n.volumeN!==undefined&&n.gravity>0){const phase=reduced?.5:(s.tick/90+n.id%7/7)%1;g.lineStyle(1,0x70dccd,(1-phase)*(.08+n.volumeN*.25)).strokeCircle(n.x,n.y,n.radius+10+phase*26);}
       if(n.volatilityN>.03&&n.gravity>0){g.lineStyle(1,0xf0bd80,.12+n.volatilityN*.4);g.beginPath();for(let j=0;j<=48;j++){const a=j/48*Math.PI*2,wiggle=Math.sin(a*7+(reduced?0:s.tick/40))*n.volatilityN*10,rad=n.fieldRadius+wiggle,x=n.x+Math.cos(a)*rad,y=n.y+Math.sin(a)*rad;if(j===0)g.moveTo(x,y);else g.lineTo(x,y);}g.strokePath();}
@@ -129,8 +131,8 @@ class ArenaScene extends Phaser.Scene {
     }
     for(const gate of s.gates){g.lineStyle(2,0x78efd0,.8).strokeRoundedRect(gate.x-42,gate.y-42,84,84,12);g.lineStyle(1,0x78efd0,.2).strokeCircle(gate.x,gate.y,gate.radius);this.label(`g${gate.id}`,'WALLET',gate.x,gate.y,'#78efd0',12);}
     for(const f of s.fragments){g.fillStyle(f.event?0xf3c675:0x74dfd3,.85);g.fillTriangle(f.x,f.y-4,f.x+4,f.y,f.x,f.y+4);g.fillTriangle(f.x,f.y-4,f.x-4,f.y,f.x,f.y+4);}
-    const alpha=Math.min(1,(performance.now()-receivedAt)/(1000/15));
-    for(const authoritative of s.players){const old=previous?.players.find(p=>p.id===authoritative.id);let p=authoritative.id===s.selfId&&predicted?predicted:{...authoritative,x:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.x+(authoritative.x-old.x)*alpha:authoritative.x,y:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.y+(authoritative.y-old.y)*alpha:authoritative.y};if(authoritative.respawnTick)continue;
+
+    for(const authoritative of renderTo.players){const old=renderFrom.players.find(p=>p.id===authoritative.id);let p=authoritative.id===s.selfId&&predicted?predicted:{...authoritative,x:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.x+(authoritative.x-old.x)*alpha:authoritative.x,y:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.y+(authoritative.y-old.y)*alpha:authoritative.y};if(authoritative.respawnTick)continue;
       if(p.id===s.selfId){const v=this.visualSelf;const blend=1-Math.exp(-Math.min(delta,100)/35);this.visualSelf=!v||Math.hypot(p.x-v.x,p.y-v.y)>120?{x:p.x,y:p.y}:{x:v.x+(p.x-v.x)*blend,y:v.y+(p.y-v.y)*blend};p={...p,...this.visualSelf};}
       if(p.hacker){
         g.fillStyle(0xff334c,.10).fillCircle(p.x,p.y,40);g.lineStyle(2,0xff435a,.85).strokeCircle(p.x,p.y,29);

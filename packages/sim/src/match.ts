@@ -151,7 +151,7 @@ export function predictMotion(p:Contestant,nodes:readonly MarketNode[],action:Ac
   const input=normalizeMovement(action.moveX,action.moveY);
   const boosted=action.boost&&p.energy>=24*FIXED_DT&&Math.hypot(input.moveX,input.moveY)>.05;
   const motion=step({tick,seed,rngState:seed,player:p,nodes},{...input,polarity:action.polarity,
-    thrustScale:Math.pow(100/playerMass(p),.35)*(boosted?2.25:1)}).player;
+    thrustScale:Math.pow(100/playerMass(p),.35)*(boosted?2.25:1),arcade:true}).player;
   const radius=playerRadius(p);resolveContact(motion,nodes,radius);
   motion.x=clamp(motion.x,radius,CONFIG.width-radius);motion.y=clamp(motion.y,radius,CONFIG.height-radius);
   return {...p,...motion,energy:clamp(p.energy+(boosted?-24:6)*FIXED_DT,0,100)};

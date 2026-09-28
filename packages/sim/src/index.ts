@@ -7,7 +7,7 @@ export { CONFIG } from './config.js';
 export { SYNTHETIC_NODES, boundedNoise, fieldAt, validateNodes } from './fields.js';
 export * from './match.js';
 export * from './prediction.js';
-export interface SimInput extends MovementInput { polarity?: Polarity; thrustScale?: number }
+export interface SimInput extends MovementInput { polarity?: Polarity; thrustScale?: number; arcade?: boolean }
 export interface SimState { tick: number; seed: number; rngState: number; player: PlayerState; nodes: readonly MarketNode[] }
 
 // Explicit unsigned 32-bit PRNG; no clock or ambient random state.
@@ -29,12 +29,19 @@ export function accelerationAt(state: SimState, input: SimInput): Vector {
   const move = normalizeMovement(input.moveX, input.moveY);
   const polarity = input.polarity ?? state.player.polarity;
   const thrust = CONFIG.acceleration * (input.thrustScale ?? 1);
-  let x = move.moveX * thrust - CONFIG.drag * state.player.vx;
-  let y = move.moveY * thrust - CONFIG.drag * state.player.vy;
+  const drag = input.arcade ? 1.8 : CONFIG.drag;
+  let x = move.moveX * thrust - drag * state.player.vx;
+  let y = move.moveY * thrust - drag * state.player.vy;
+  let field = {x:0,y:0};
   for (const node of state.nodes) {
     const force = fieldAt(node, state.player, polarity, state.seed, state.tick).total;
-    x += force.x; y += force.y;
+    if(input.arcade){field.x += force.x; field.y += force.y;}
+    else{x += force.x; y += force.y;}
   }
+  // Gameplay controls must overcome even overlapping inward market currents.
+  // Cap the combined field, rather than each planet independently.
+  if(input.arcade)field=capVector(field,thrust*.5);
+  x += field.x; y += field.y;
   return capVector({x, y}, CONFIG.maxAcceleration);
 }
 
