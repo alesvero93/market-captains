@@ -1,10 +1,12 @@
-# Current release: single player
+# Current release: singleplayer and multiplayer
 
-The public preview runs one local player and three bots. Movement and scoring are simulated in the browser; no multiplayer connection is opened. Render serves the client and a cached normalized CMC market frame. SHARE GAME opens separate arenas. Multiplayer implementation and tests remain for future work, but production matchmaking is disabled. Scores are local and unverified.
+Choose the mode alongside your name and avatar. Singleplayer runs locally with 3, 4 or 5 bots and three difficulty levels. Multiplayer joins an existing public waiting lobby or creates one; an optional room link invites friends to the same lobby. A shared server deadline starts with the first arrival and never extends beyond three minutes. Ten humans start immediately; the host may start early. At launch, bots fill empty seats to 10 total, and the room locks to new arrivals. New matchmaking opens another waiting lobby. Reconnection retains a seat for 15 seconds; abandoned seats become bots.
+
+Online simulation, scores and health are server-authoritative at 30 Hz. Snapshots are sent at 10 Hz; the client predicts its own motion with bounded reconciliation and interpolates other players. Online matches continue when a tab loses focus or the guide opens; controls are released. Solo play pauses. Render shares one cached CMC feed across all rooms; joining players does not generate provider calls. The service is limited to eight concurrent rooms.
 
 # MARKET CAPTAINS — playable arena preview
 
-Five-minute single-player arena: five to seven market planets (BTC central, ETH in a slow orbit), polarity currents, fragments, cargo mass, boost, pulse, 3-second bank channels, elimination/respawn, leaderboard, volatility surge and Market Close. Three bots with selectable difficulty. The retained multiplayer implementation has a 10-character limit but is not enabled in production. The original field lab is development-only.
+Five-minute arena: five to seven market planets (BTC central, ETH in a slow orbit), polarity currents, fragments, cargo mass, boost, pulse, 3-second bank channels, elimination/respawn, leaderboard, volatility surge and Market Close. Solo has 3–5 bots with selectable difficulty; multiplayer has up to 10 total participants. The original field lab is development-only.
 
 ## Run locally
 
@@ -15,7 +17,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open http://127.0.0.1:5173/. Hold left mouse to steer toward the cursor; right mouse or Shift boosts. WASD/arrows remain available. Space pulses. Stop inside a green wallet for 3 seconds to deposit. Health (85) and regenerating fuel are separate. Matches last five minutes; SHARE GAME gives each friend a separate solo arena.
+Open http://127.0.0.1:5173/. Hold left mouse to steer toward the cursor; right mouse or Shift boosts. WASD/arrows remain available. Space pulses. Stop inside a green wallet for 3 seconds to deposit. Health (85) and regenerating fuel are separate. Matches last five minutes. SHARE GAME shares the site; the waiting lobby provides the room-specific invitation.
 
 The biggest active banked wallet becomes the whale and alone controls the shared LONG/SHORT current (Q, 2-second reversal cooldown). It drops a blue 10-point diamond every 3 seconds, collectible by everyone except the current whale. Bitcoin has tangential clockwise/counterclockwise flow, damaging solar heat and a lethal core. Other planets retain their existing attraction/current mechanics. One of five fictional memecoins appears once for 30 seconds, dropping 30 fragments worth 15 each. The last-minute storm shrinks toward the central wallet, ramps up outside damage and increases newly spawned fragment value. Choose Relaxed, Challenging or Ruthless bots before a match; no extra CMC calls or extra bot slots are used.
 

@@ -1,5 +1,5 @@
 import type { ArenaInput, ArenaSnapshot, Contestant } from '@liquidity/shared';
-import { predictMotion } from './match.js';
+import { orbitNode, predictMotion } from './match.js';
 
 /** Render remote objects behind receipt time to absorb uneven network arrivals. */
 export class SnapshotBuffer {
@@ -48,6 +48,6 @@ export class MotionPredictor {
   private advance(input:ArenaInput,tick:number){
     if(!this.player||!this.snapshot||this.player.respawnTick||!this.player.connected)return;
     if(this.player.bankTicks>0&&input.bank)return;
-    this.player=predictMotion(this.player,this.snapshot.nodes,input,this.snapshot.seed,tick);
+    this.player=predictMotion(this.player,this.snapshot.nodes.map(n=>orbitNode(n,tick)),{...input,polarity:this.snapshot.globalPolarity??input.polarity},this.snapshot.seed,tick);
   }
 }

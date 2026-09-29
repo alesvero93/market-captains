@@ -2,9 +2,10 @@ import musicUrl from './assets/turbateknichal.mp3?url';
 import {showLoading,hideLoading} from './loading.js';
 import brandLogo from './assets/market-captains-logo.png?inline';
 import Phaser from 'phaser';
+import {Client, type Room} from '@colyseus/sdk';
 
-import { ARENA_SCHEMA_VERSION, ARENA_ROOM_NAME, normalizeMovement, AVATARS, type ArenaInput, type ArenaSnapshot, type Contestant, type MarketFrame, type Polarity } from '@liquidity/shared';
-import { leaderboard, totalScore, SoloArena, syntheticMarket, playerRadius, MATCH, MEMECOINS, CLOSE_CENTER, mouseSteering } from '@liquidity/sim';
+import { ARENA_SCHEMA_VERSION, ARENA_ROOM_NAME, normalizeMovement, AVATARS, type LobbySnapshot, type ArenaInput, type ArenaSnapshot, type Contestant, type MarketFrame, type Polarity } from '@liquidity/shared';
+import { leaderboard, totalScore, SoloArena, MotionPredictor, SnapshotBuffer, syntheticMarket, playerRadius, MATCH, MEMECOINS, CLOSE_CENTER, mouseSteering } from '@liquidity/sim';
 import './arena.css';
 import { PORTRAITS } from './portraits.js';
 import { opportunity } from '@liquidity/sim';
@@ -18,9 +19,10 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <section class="layout"><div class="play"><div id="arena" aria-label="Arena: WASD or arrows, hold left mouse to steer, right mouse boosts; whale Q toggles LONG SHORT, Shift boosts, Space pulses. Stand still in a wallet to deposit." tabindex="0"></div><div id="notice" role="status">Collect glowing fragments. Stop inside a green wallet for 3 seconds to deposit automatically.</div></div>
 <aside><p class="overline">YOUR CAPTAIN</p><div class="scores"><div><span>CARGO · AT RISK</span><strong id="cargo">0</strong></div><div><span>IN YOUR WALLET</span><strong id="banked">0</strong></div></div><label>Fuel <meter id="energy" min="0" max="100" value="100"></meter></label><label>Health <meter id="hp" min="0" max="85" value="85"></meter></label><label>Deposit <progress id="bank" max="90" value="0"></progress></label><p class="overline">LEADERBOARD</p><ol id="leaders"></ol><button id="again" hidden>New match</button><p class="hint">A fuller wallet makes a rounder captain. Cargo weighs you down and is lost on elimination. Banked points stay yours.</p></aside></section>
 <section class="controls" aria-label="Controls"><div class="polarities"><button data-polarity="1" aria-pressed="true">△ LONG</button><button data-polarity="-1">▽ SHORT</button></div><button id="boost">BOOST <kbd>Shift</kbd></button><button id="pulse">PULSE <kbd>Space</kbd></button><button id="invite">SHARE GAME</button><button id="sound" aria-pressed="false">Music off</button></section>
-<div class="touch"><div id="stick" aria-label="Joystick touch"><span>✥</span></div><span>Drag to move · tap LONG or SHORT</span></div><footer><span>HOLD LEFT MOUSE · RIGHT BOOST · WHALE: Q</span><span id="data-note">Synthetic data: no CMC calls.</span><span>SINGLE PLAYER · 3 BOTS</span></footer></main>`;
+<div class="touch"><div id="stick" aria-label="Joystick touch"><span>✥</span></div><span>Drag to move · tap LONG or SHORT</span></div><footer><span>HOLD LEFT MOUSE · RIGHT BOOST · WHALE: Q</span><span id="data-note">Synthetic data: no CMC calls.</span><span id="mode-note">SINGLE PLAYER</span></footer></main>`;
 document.querySelector('.controls')!.insertAdjacentHTML('afterend',`<a id="invite-link" hidden></a><p id="flow-status" class="flow-status" role="status">Only the whale controls LONG / SHORT for everyone.</p><details class="explain"><summary>How the market changes the map</summary><p>Market cap sets planet size and gravity; Bitcoin is a tangential sling. volume distributes fragments; one-hour momentum directs the current. Volatility comes from prices sampled every five minutes, after warm-up.</p><label for="inspect-node">Inspect a node</label><select id="inspect-node" aria-label="Node to inspect"></select><p id="inspect-values"></p><p>The biggest wallet controls the shared current: LONG is outward at rising planets, SHORT reverses it. Bitcoin has only clockwise / counterclockwise current, solar heat and a lethal core. Other planets retain gravity inside their halos. Release movement for automatic braking. These are game indices, not percentage changes, bets or forecasts. SYNTHETIC values are illustrative scenarios.</p></details>`);
-document.querySelector('main')!.insertAdjacentHTML('beforebegin',`<section id="start-screen" class="start-screen"><div class="start-copy"><p class="overline">A SMALL UNIVERSE. A VERY BIG WALLET.</p><h1>The market moves.<br>Can you ride it?</h1><p>Dodge the Bitcoin sun, ride the currents and fill your wallet.<br>Five-minute solo matches. Three bots. Smooth local simulation.</p><ul><li><b>Move</b> by holding left mouse or with WASD / arrows</li><li><b>Whale Q</b> controls LONG / SHORT · <b>Space</b> pushes rivals away</li><li><b>Right mouse / Shift</b> boosts · stop in wallets to deposit</li></ul><p class="hint">Market data powers the map. No real money. No crypto wallet connection.</p></div><form id="start-form" class="pilot-card"><p class="overline">CHOOSE YOUR MEME CREW</p><div id="avatars" class="avatars">${AVATARS.map((name,i)=>`<button type="button" data-avatar="${i}" aria-label="${name}" aria-pressed="${i===0}"><img src="${PORTRAITS[i]}" alt=""/><span>${name}</span></button>`).join('')}</div><label for="pilot-name">Name or invented ticker</label><input id="pilot-name" maxlength="16" placeholder="MOONBEAN" autocomplete="off" value="MOONBEAN"/><label for="difficulty">Bot difficulty: <output id="difficulty-label">Challenging</output></label><input id="difficulty" type="range" min="1" max="3" step="1" value="2" aria-label="Bot difficulty"/><button id="play" type="submit" class="play-button">ENTER THE ARENA →</button><button id="fresh-room" type="button" hidden>FIND ANOTHER ARENA</button><p id="start-status" role="status">Choose a captain: all avatars have the same abilities.</p></form></section>`);
+document.querySelector('main')!.insertAdjacentHTML('beforebegin',`<section id="start-screen" class="start-screen"><div class="start-copy"><p class="overline">A SMALL UNIVERSE. A VERY BIG WALLET.</p><h1>The market moves.<br>Can you ride it?</h1><p>Dodge the Bitcoin sun, ride the currents and fill your wallet.<br>Five-minute matches. Solo or public multiplayer lobbies.</p><ul><li><b>Move</b> by holding left mouse or with WASD / arrows</li><li><b>Whale Q</b> controls LONG / SHORT · <b>Space</b> pushes rivals away</li><li><b>Right mouse / Shift</b> boosts · stop in wallets to deposit</li></ul><p class="hint">Market data powers the map. No real money. No crypto wallet connection.</p></div><form id="start-form" class="pilot-card"><p class="overline">CHOOSE YOUR MEME CREW</p><div id="avatars" class="avatars">${AVATARS.map((name,i)=>`<button type="button" data-avatar="${i}" aria-label="${name}" aria-pressed="${i===0}"><img src="${PORTRAITS[i]}" alt=""/><span>${name}</span></button>`).join('')}</div><label for="pilot-name">Name or invented ticker</label><input id="pilot-name" maxlength="16" placeholder="MOONBEAN" autocomplete="off" value="MOONBEAN"/><div class="mode-row"><label for="game-mode">Game mode<select id="game-mode"><option value="solo">Singleplayer</option><option value="multi">Multiplayer</option></select></label><label id="bot-count-label" for="bot-count">Solo opponents<select id="bot-count"><option value="3">3 bots</option><option value="4">4 bots</option><option value="5">5 bots</option></select></label></div><div id="solo-difficulty"><label for="difficulty">Bot difficulty: <output id="difficulty-label">Challenging</output></label><input id="difficulty" type="range" min="1" max="3" step="1" value="2" aria-label="Bot difficulty"/></div><button id="play" type="submit" class="play-button">ENTER THE ARENA →</button><button id="fresh-room" type="button" hidden>FIND ANOTHER ARENA</button><p id="start-status" role="status">Choose a captain: all avatars have the same abilities.</p></form></section>`);
+document.querySelector('main')!.insertAdjacentHTML('beforebegin',`<section id="lobby-screen" class="lobby-screen" hidden><div class="lobby-card"><p class="overline">PUBLIC MULTIPLAYER LOBBY</p><h1>Assemble your captains</h1><p id="lobby-status" role="status">Finding a public lobby…</p><strong id="lobby-countdown">03:00</strong><p>Up to 10 captains. Empty seats become bots when the match starts.</p><ol id="lobby-players"></ol><label for="lobby-url">Optional invite link</label><input id="lobby-url" readonly/><div class="lobby-actions"><button id="copy-invite">COPY INVITE</button><button id="start-now" hidden>START NOW WITH BOTS</button><button id="leave-lobby">BACK</button></div><p id="lobby-feedback" role="status">You can join without an invitation. The shared timer never resets.</p></div></section>`);
 document.querySelector('.play')!.insertAdjacentHTML('beforeend',`<section id="opportunities" aria-label="Gameplay opportunities"><p class="overline">OPPORTUNITIES <span> / GAMEPLAY</span></p><p id="opportunity-text">Join an arena to read the currents.</p><small id="market-update">Market cap → planet size / gravity · volume → fragments · momentum → current · volatility → turbulence</small></section>`);
 document.querySelector('aside')!.insertAdjacentHTML('beforeend','<p class="music-credit">Original soundtrack by the MARKET CAPTAINS team.<br>Free to use · Mr Finn — Turbateknichal</p>');
 document.querySelector('.market')!.prepend(document.querySelector('.clock')!);
@@ -35,8 +37,47 @@ el<HTMLFormElement>('start-form').onsubmit=e=>{e.preventDefault();void connect()
 el<HTMLInputElement>('difficulty').oninput=()=>{el('difficulty-label').textContent=['Relaxed','Challenging','Ruthless'][Number(el<HTMLInputElement>('difficulty').value)-1]!;};
 el('play').onclick=e=>{e.preventDefault();void connect();};
 let game:Phaser.Game|undefined;
+let netRoom:Room|undefined, joining=false, joinGeneration=0, multiplayer=false, lobby:LobbySnapshot|undefined, lobbyReceived=0;
+const predictor=new MotionPredictor(), snapshots=new SnapshotBuffer();
+let correction={x:0,y:0}, sentControls=false;
+function modeUi(){const multi=el<HTMLSelectElement>('game-mode').value==='multi';el('bot-count-label').hidden=multi;el('solo-difficulty').hidden=multi;el('play').textContent=multi?'JOIN PUBLIC LOBBY →':'ENTER THE ARENA →';}
+const invitation=new URLSearchParams(location.search).get('room');
+if(invitation)el<HTMLSelectElement>('game-mode').value='multi';
+el('game-mode').onchange=modeUi;modeUi();
+function renderLobby(s:LobbySnapshot){
+ lobby=s;lobbyReceived=performance.now();el('start-screen').hidden=true;el('lobby-screen').hidden=false;
+ el('lobby-status').textContent=`${s.players.filter(p=>p.connected).length} / ${s.capacity} players · shared public lobby`;
+ el('lobby-players').replaceChildren(...s.players.map(p=>{const li=document.createElement('li');const img=document.createElement('img');img.src=PORTRAITS[p.avatar]!;img.alt='';li.append(img,document.createTextNode(`${p.name}${p.id===netRoom?.sessionId?' · YOU':''}${p.id===s.hostId?' · HOST':''}${p.connected?'':' · RECONNECTING'}`));return li;}));
+ el('start-now').hidden=s.hostId!==netRoom?.sessionId;
+ el<HTMLInputElement>('lobby-url').value=location.origin+'/?room='+encodeURIComponent(s.roomId);
+ lobbyClock();
+}
+function lobbyClock(){if(!lobby)return;const seconds=Math.max(0,Math.ceil((lobby.remainingMs-(performance.now()-lobbyReceived))/1000));el('lobby-countdown').textContent=`${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;}
+setInterval(lobbyClock,250);
+el('copy-invite').onclick=async()=>{try{await navigator.clipboard.writeText(el<HTMLInputElement>('lobby-url').value);el('lobby-feedback').textContent='Invite copied.';}catch{el<HTMLInputElement>('lobby-url').select();el('lobby-feedback').textContent='Copy the selected invite link.';}};
+el('start-now').onclick=()=>netRoom?.send('start');
+el('leave-lobby').onclick=()=>void returnToStart();
+async function returnToStart(message='Choose your next match.'){
+ joinGeneration++;joining=false;release();connected=false;music.pause();musicPending=false;lobby=undefined;solo=undefined;predictor.reset();snapshots.reset();correction={x:0,y:0};
+ const old=netRoom;netRoom=undefined;if(old)void old.leave();
+ el('lobby-screen').hidden=true;document.querySelector<HTMLElement>('main')!.hidden=true;el('start-screen').hidden=false;el<HTMLButtonElement>('play').disabled=false;status(message);
+}
+function enterArena(){
+ const firstEntry=document.querySelector<HTMLElement>('main')!.hidden;
+ lobby=undefined;el('lobby-screen').hidden=true;el('start-screen').hidden=true;document.querySelector<HTMLElement>('main')!.hidden=false;
+ if(!game){showLoading(0,'Preparing captains and planets…');game=createGame();}game.scale.refresh();el('arena').focus();connected=true;if(firstEntry)musicPending=true;
+}
+function receiveArena(s:ArenaSnapshot){
+ const old=predictor.player;
+ if(!predictor.accept(s))return;
+ previous=latest;latest=s;receivedAt=performance.now();snapshots.push(s,receivedAt);
+ const own=predictor.player;
+ if(old&&own&&!old.respawnTick&&!own.respawnTick&&Math.hypot(old.x-own.x,old.y-own.y)<120)correction={x:correction.x+old.x-own.x,y:correction.y+old.y-own.y};else correction={x:0,y:0};
+ if(!connected)enterArena();updateHud(s);
+ if(s.phase==='finished')music.pause();
+}
 
-el("fresh-room").onclick=()=>{history.replaceState(null,"",location.pathname);void connect();};
+el("fresh-room").onclick=()=>{history.replaceState(null,"",location.pathname);void connect(true);};
 let solo:SoloArena|undefined, latest:ArenaSnapshot|undefined, previous:ArenaSnapshot|undefined;
 let cachedMarket:MarketFrame=syntheticMarket(); let accumulator=0; let lastHud=0;
 let predicted:Contestant|undefined, seq=0, clientTick=0, receivedAt=0;
@@ -67,7 +108,7 @@ arenaElement.onpointerup=e=>{if(e.pointerType==='mouse')pointMouse(e);};
 arenaElement.onpointercancel=()=>{mouseHeld=mouseBoost=false;mouseTarget=undefined;};
 window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(guideOpen()||!connected||!controlKeys.includes(k)||(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement||e.target instanceof HTMLTextAreaElement))return;e.preventDefault();keys.add(k);if(k===' '&&!e.repeat)pulse=true;if(k==='q'&&!e.repeat)select(polarity===1?-1:1);});
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-function release(){mouseHeld=mouseBoost=false;mouseTarget=undefined;keys.clear();held.clear();pulse=false;joystick={moveX:0,moveY:0};}
+function release(){if(sentControls&&multiplayer&&netRoom?.connection.isOpen&&latest)netRoom.send('input',{schemaVersion:ARENA_SCHEMA_VERSION,seq:seq++,clientTick:clientTick++,moveX:0,moveY:0,polarity,boost:false,pulse:false,bank:false});sentControls=false;mouseHeld=mouseBoost=false;mouseTarget=undefined;keys.clear();held.clear();pulse=false;joystick={moveX:0,moveY:0};}
 document.querySelector('.controls')!.insertAdjacentHTML('beforeend','<button data-guide>GUIDE</button>');
 document.querySelector('.start-copy')!.insertAdjacentHTML('beforeend','<button data-guide>HOW TO PLAY →</button>');
 installGuide(release);
@@ -93,29 +134,54 @@ async function refreshMarket(){
   }
 }
 void refreshMarket();setInterval(()=>void refreshMarket(),60000);
-async function connect(){
+async function connect(publicLobby=false){
+  if(joining)return;joining=true;el<HTMLButtonElement>('play').disabled=true;
+  const generation=++joinGeneration;multiplayer=el<HTMLSelectElement>('game-mode').value==='multi';
   release();music.pause();musicPending=true;accumulator=0;seq=clientTick=0;lastEventTick=-1;lastHud=0;
+  predictor.reset();snapshots.reset();correction={x:0,y:0};latest=previous=undefined;solo=undefined;
+  if(multiplayer){
+    el('start-screen').hidden=true;el('lobby-screen').hidden=false;el('lobby-status').textContent='Connecting to a public lobby…';el('start-now').hidden=true;el('lobby-players').replaceChildren();el<HTMLInputElement>('lobby-url').value='';
+    try{
+      const client=new Client(import.meta.env.DEV?`${location.protocol}//${location.hostname}:2567`:location.origin);
+      const options={name:el<HTMLInputElement>('pilot-name').value,avatar};
+      const roomId=publicLobby?null:new URLSearchParams(location.search).get('room');
+      const room=roomId?await client.joinById(roomId,options):await client.joinOrCreate(ARENA_ROOM_NAME,options);
+      if(generation!==joinGeneration){void room.leave();return;}
+      netRoom=room;
+      room.onMessage('lobby',(s:LobbySnapshot)=>{if(netRoom===room)renderLobby(s);});
+      room.onMessage('arena',(s:ArenaSnapshot)=>{if(netRoom===room)receiveArena(s);});
+      room.onDrop(()=>{if(netRoom!==room)return;release();connected=false;predictor.reset();snapshots.reset();correction={x:0,y:0};status('Connection interrupted · reconnecting…');el('start-now').hidden=true;el('lobby-status').textContent='Reconnecting…';});
+      room.onReconnect(()=>{seq=clientTick=0;accumulator=0;status('Reconnected · synchronizing…');});
+      room.onLeave(()=>{if(netRoom===room)void returnToStart('Connection closed. Join another public lobby.');});
+      room.onError(()=>{if(netRoom===room)status('Network error · please retry if the connection closes.');});
+    }catch{if(generation===joinGeneration){await returnToStart('Lobby unavailable, full or already started. Find another public lobby.');el('fresh-room').hidden=false;}}
+    finally{if(generation===joinGeneration){joining=false;el<HTMLButtonElement>('play').disabled=false;}}
+    return;
+  }
   const seed=crypto.getRandomValues(new Uint32Array(1))[0]!;
-  solo=new SoloArena(seed,el<HTMLInputElement>('pilot-name').value.slice(0,16)||'CAPTAIN',avatar,cachedMarket,Number(el<HTMLInputElement>('difficulty').value) as 1|2|3);
+  solo=new SoloArena(seed,el<HTMLInputElement>('pilot-name').value.slice(0,16)||'CAPTAIN',avatar,cachedMarket,Number(el<HTMLInputElement>('difficulty').value) as 1|2|3,Number(el<HTMLSelectElement>('bot-count').value) as 3|4|5);
   latest=solo.snapshot();previous=undefined;predicted=latest.players.find(p=>p.id==='solo');
-  el('start-screen').hidden=true;document.querySelector<HTMLElement>('main')!.hidden=false;
-  if(!game){showLoading(0,'Preparing captains and planets…');game=createGame();}game.scale.refresh();el('arena').focus();connected=true;
+  enterArena();joining=false;el<HTMLButtonElement>('play').disabled=false;
   status('● Single player · local');updateHud(latest);
 }
-el('again').onclick=()=>{release();music.pause();connected=false;document.querySelector<HTMLElement>('main')!.hidden=true;el('start-screen').hidden=false;};
+el('again').onclick=()=>void returnToStart();
 el('invite').onclick=async()=>{
-  const url=location.origin;const link=el<HTMLAnchorElement>('invite-link');link.href=url;link.textContent=`Single-player game: ${url}`;link.hidden=false;
+  const url=location.origin;const link=el<HTMLAnchorElement>('invite-link');link.href=url;link.textContent=`Play Market Captains: ${url}`;link.hidden=false;
   try{await navigator.clipboard.writeText(url);}catch{/* Visible link remains available. */}
-  el('notice').textContent='Share this game: each player has their own solo arena.';
+  el('notice').textContent='Share the game. Multiplayer invitations are available before a match starts.';
 };
 function localTick(){
-  if(!connected||!solo||!latest||latest.phase==='finished'){if(latest?.phase==='finished')music.pause();return;}
+  if(!connected||!latest||(!solo&&!netRoom)||latest.phase==='finished'){if(latest?.phase==='finished')music.pause();return;}
   const down=(...ks:string[])=>ks.some(k=>keys.has(k))?1:0;
   let movement=normalizeMovement(down('d','arrowright')-down('a','arrowleft')+joystick.moveX,down('s','arrowdown')-down('w','arrowup')+joystick.moveY);
-  const self=latest.players.find(p=>p.id===latest?.selfId);
+  const self=multiplayer?predictor.player:latest.players.find(p=>p.id===latest?.selfId);
   if(mouseHeld&&mouseTarget&&self&&Math.hypot(movement.moveX,movement.moveY)<.05)movement=mouseSteering(self,mouseTarget);
   const input:ArenaInput={schemaVersion:ARENA_SCHEMA_VERSION,seq:seq++,clientTick:clientTick++,polarity,...movement,boost:mouseBoost||keys.has('shift')||held.has('boost'),pulse,bank:Math.hypot(movement.moveX,movement.moveY)<.15};pulse=false;
-  previous=latest;latest=solo.step(input);predicted=latest.players.find(p=>p.id==='solo');
+  if(multiplayer){
+    if(!netRoom?.connection.isOpen||performance.now()-receivedAt>500)return;
+    netRoom.send('input',input);sentControls=true;predictor.push(input);return;
+  }
+  previous=latest;latest=solo!.step(input);predicted=latest.players.find(p=>p.id==='solo');
   if(latest.tick-lastHud>=6||latest.phase==='finished'){updateHud(latest);lastHud=latest.tick;}
   for(const event of latest.events)if(event.tick>lastEventTick&&event.playerId==='solo')tone(event.type==='bank'?660:event.type==='elimination'?110:330);lastEventTick=latest.tick;
 }
@@ -134,11 +200,12 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
   }
   el('market-update').textContent=updateMessage;const self=s.players.find(p=>p.id===s.selfId),seconds=Math.ceil(s.remainingTicks/30);el('clock').textContent=`${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
   el('market').textContent=s.marketMode;el('data-note').textContent=s.marketMessage+(s.marketSourceTime?` · source ${new Date(s.marketSourceTime).toLocaleTimeString('en-US')}`:'');
-  el('population').dataset.hacker=String(s.players.some(p=>p.hacker));el('population').textContent=`Single player · ${s.players.filter(p=>p.bot&&!p.hacker).length} bots${s.players.some(p=>p.hacker)?' · HACKER':''}`;
+  el('population').dataset.hacker=String(s.players.some(p=>p.hacker));el('population').textContent=`${multiplayer?'Multiplayer · '+s.players.filter(p=>!p.bot).length+' players':'Single player'} · ${s.players.filter(p=>p.bot&&!p.hacker).length} bots${s.players.some(p=>p.hacker)?' · HACKER':''}`;
   if(self){const node=[...s.nodes].sort((a,b)=>Math.hypot(self.x-a.x,self.y-a.y)-Math.hypot(self.x-b.x,self.y-b.y))[0];if(node){const active=Math.hypot(self.x-node.x,self.y-node.y)<node.fieldRadius;el('flow-status').textContent=`${globalPolarity===1?'LONG':'SHORT'} · ${node.symbol} ${node.momentumN>=0?'↑':'↓'} · ${active?(node.id===1?(globalPolarity===1?'CLOCKWISE SLING ↻':'COUNTERCLOCKWISE SLING ↺'):Math.abs(node.momentumN)<.02?'almost no current':globalPolarity*node.momentumN>0?'OUTWARD CURRENT →':'INWARD CURRENT ←'):'enter the halo to feel the current'} · ${ownWhale?'YOU ARE THE WHALE · Q to reverse':whale?`${whale.name} controls the current`:'Bank points to become whale'}`;}el('cargo').textContent=String(self.cargo);el('banked').textContent=String(self.banked);el<HTMLMeterElement>('energy').value=self.energy;el<HTMLMeterElement>('hp').value=self.integrity;el<HTMLProgressElement>('bank').value=self.bankTicks;
     el('notice').textContent=self.respawnTick?`Respawning in ${Math.max(0,Math.ceil((self.respawnTick-s.tick)/30))} s · wallet safe`:s.phase==='finished'?`Match over · wallet ${self.banked}`:s.phase==='closing'?'MARKET CLOSE · storm damage rising! Reach the safe circle':self.bankTicks?`Depositing · ${(self.bankTicks/30).toFixed(1)} / 3 s`:s.surge?`VOLATILITY SURGE · ${s.nodes.find(n=>n.id===s.surge!.nodeId)?.symbol} · ${s.surge.stage==='telegraph'?'incoming':s.surge.stage==='active'?'active':'fading'}`:'Collect fragments. Stop in green wallets for 3 seconds to deposit automatically.';
   }
-  el('leaders').replaceChildren(...leaderboard(s.players.filter(p=>!p.hacker)).slice(0,8).map(p=>{const li=document.createElement('li');li.className=p.id===s.selfId?'self':'';li.textContent=`${p.whale?'WHALE · ':''}${p.id===s.selfId?'YOU':p.name}${p.bot?' · BOT':''}   ${p.banked}`;return li;}));
+  el('leaders').replaceChildren(...leaderboard(s.players.filter(p=>!p.hacker)).slice(0,10).map(p=>{const li=document.createElement('li');li.className=p.id===s.selfId?'self':'';li.textContent=`${p.whale?'WHALE · ':''}${p.id===s.selfId?'YOU':p.name}${p.bot?' · BOT':''}   ${p.banked}`;return li;}));
+  el('mode-note').textContent=multiplayer?'MULTIPLAYER · 10 TOTAL':`SINGLE PLAYER · ${s.players.filter(p=>p.bot).length} BOTS`;
   el<HTMLButtonElement>('again').hidden=s.phase!=='finished';
 }
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -150,11 +217,14 @@ class ArenaScene extends Phaser.Scene {
 
   label(id:string,text:string,x:number,y:number,color='#8ea3b6',size=13){let l=this.labels.get(id);if(!l){l=this.add.text(x,y,text,{fontFamily:'monospace',fontSize:size,color}).setOrigin(.5);this.labels.set(id,l);}l.setText(text).setPosition(x,y).setColor(color).setVisible(true);}
   override update(_time:number,delta:number){
-    if(document.hidden||guideOpen()||!document.hasFocus()){release();accumulator=0;if(connected)status('Paused · click the arena to resume');}
-    else if(connected){if(musicPending){musicPending=false;startMusic();}status('● Single player · local');accumulator+=Math.min(delta,100);let steps=0;while(accumulator>=1000/30&&steps++<3){localTick();accumulator-=1000/30;}}
+    if(document.querySelector<HTMLElement>('main')!.hidden)return;
+    if(document.hidden||guideOpen()||!document.hasFocus()){release();accumulator=0;if(connected)status(multiplayer?'Controls released · online match continues':'Paused · click the arena to resume');}
+    else if(connected){if(musicPending){musicPending=false;startMusic();}status(multiplayer?(performance.now()-receivedAt>500?'Connection delayed · waiting for server':'● Multiplayer · connected'):'● Single player · local');accumulator+=Math.min(delta,100);let steps=0;while(accumulator>=1000/30&&steps++<3){localTick();accumulator-=1000/30;}}
     const g=this.g;if(!g)return;g.clear();for(const item of this.sprites.values())item.setVisible(false);for(const l of this.labels.values())l.setVisible(false);g.fillStyle(0x080f1b).fillRect(0,0,1440,900);g.lineStyle(1,0x193040,.5);for(let x=0;x<1440;x+=60)g.lineBetween(x,0,x,900);for(let y=0;y<900;y+=60)g.lineBetween(0,y,1440,y);
     const s=latest;if(!s){this.label('loading','CHOOSE YOUR CAPTAIN',720,450,'#72efd0',22);return;}
-    const renderFrom=previous??s, renderTo=s; const alpha=Math.min(1,accumulator/(1000/30));
+    const buffered=multiplayer?snapshots.sample(performance.now()):undefined;
+    const renderFrom=buffered?.before??previous??s, renderTo=buffered?.after??s; const alpha=buffered?.alpha??Math.min(1,accumulator/(1000/30));
+    const decay=Math.exp(-Math.min(delta,100)/85);correction.x*=decay;correction.y*=decay;
     for(const target of renderTo.nodes){const old=renderFrom.nodes.find(n=>n.id===target.id);const n=old?{...target,x:old.x+(target.x-old.x)*alpha,y:old.y+(target.y-old.y)*alpha}:target;const c=n.id===1?0xffb74e:n.momentumN>=0?0x4bb9a1:0xc980ed;g.fillStyle(c,n.gravity>0?.035:.01).fillCircle(n.x,n.y,n.fieldRadius);g.lineStyle(1,c,n.gravity>0?.2:.06).strokeCircle(n.x,n.y,n.fieldRadius);g.lineStyle(2,c,.65).strokeCircle(n.x,n.y,n.radius+5);g.fillStyle(0x101e2b).fillCircle(n.x,n.y,n.radius);
       // Quiet volume pulses and irregular volatility halos expose the data mapping.
       if(n.volumeN!==undefined&&n.gravity>0){const phase=reduced?.5:(s.tick/90+n.id%7/7)%1;g.lineStyle(1,0x70dccd,(1-phase)*(.08+n.volumeN*.25)).strokeCircle(n.x,n.y,n.radius+10+phase*26);}
@@ -180,7 +250,7 @@ class ArenaScene extends Phaser.Scene {
     if(s.airdrop){const d=s.airdrop;g.fillStyle(0xee84dd).fillCircle(d.x,d.y,22);g.lineStyle(3,0xffe9aa).strokeCircle(d.x,d.y,26);this.sprite('airdrop-coin',`avatar-${Math.max(0,MEMECOINS.indexOf(d.name as typeof MEMECOINS[number]))}`,d.x,d.y,42);this.label('airdrop-label',d.name+' · AIRDROP',d.x,d.y-40,'#ffd58a',15);}
     if(mouseHeld&&mouseTarget)g.lineStyle(1,0x78efd0,.5).strokeCircle(mouseTarget.x,mouseTarget.y,12);
 
-    for(const authoritative of renderTo.players){const old=renderFrom.players.find(p=>p.id===authoritative.id);let p={...authoritative,x:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.x+(authoritative.x-old.x)*alpha:authoritative.x,y:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.y+(authoritative.y-old.y)*alpha:authoritative.y};if(authoritative.respawnTick)continue;
+    for(const authoritative of renderTo.players){const old=renderFrom.players.find(p=>p.id===authoritative.id);let p={...authoritative,x:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.x+(authoritative.x-old.x)*alpha:authoritative.x,y:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.y+(authoritative.y-old.y)*alpha:authoritative.y};if(multiplayer&&authoritative.id===s.selfId&&predictor.player)p={...predictor.player,x:predictor.player.x+correction.x,y:predictor.player.y+correction.y};if(p.respawnTick)continue;
       if(p.hacker){
         g.fillStyle(0xff334c,.10).fillCircle(p.x,p.y,40);g.lineStyle(2,0xff435a,.85).strokeCircle(p.x,p.y,29);
         g.fillStyle(0x691829).fillTriangle(p.x,p.y-26,p.x-24,p.y+22,p.x+24,p.y+22);

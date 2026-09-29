@@ -33,6 +33,10 @@ export interface Fragment { diamond?:boolean; id: number; x: number; y: number; 
 export interface Gate { id: number; x: number; y: number; radius: number }
 export interface GameEvent { type: 'pulse' | 'bank' | 'elimination' | 'respawn'; tick: number; x: number; y: number; playerId: string; amount: number }
 export interface Surge { nodeId: number; startTick: number; stage: 'telegraph' | 'active' | 'decay' }
+export interface LobbySnapshot {
+ roomId:string; hostId:string; remainingMs:number; capacity:number;
+ players:{id:string;name:string;avatar:number;connected:boolean}[];
+}
 export interface ArenaSnapshot {
   schemaVersion: typeof ARENA_SCHEMA_VERSION; matchId: string; selfId: string; seed: number;
   tick: number; ackSeq: number; players: Contestant[]; nodes: readonly MarketNode[];

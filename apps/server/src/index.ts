@@ -7,7 +7,7 @@ const dataDirectory=path.resolve(process.env.DATA_DIR??'.data');
 const serveClient=process.env.SERVE_CLIENT==='1';
 const publicOrigin=process.env.PUBLIC_ORIGIN??process.env.RENDER_EXTERNAL_URL??`http://127.0.0.1:${port}`;
 const market=new MarketService(dataDirectory,process.env.CMC_API_KEY??'');
-const {server} = createGameServer({singlePlayer:true,market,...(process.env.RECORD_REPLAYS==='1'?{replayDirectory:path.join(dataDirectory,'replays')}:{}),
+const {server} = createGameServer({lobbyWaitMs:180000,market,...(process.env.RECORD_REPLAYS==='1'?{replayDirectory:path.join(dataDirectory,'replays')}:{}),
   ...(serveClient?{clientDirectory:path.resolve('apps/client/dist'),publicOrigin}:{})});
 await server.listen(port, process.env.HOST??'127.0.0.1');
 market.start();

@@ -7,7 +7,7 @@ import { ArenaRoom } from './arena-room.js';
 import type { MarketSource } from './arena-room.js';
 import { clientEndpoints, originGuard } from './client-assets.js';
 
-export function createGameServer(options:{singlePlayer?:boolean;market?:MarketSource;botCount?:number;replayDirectory?:string;durationTicks?:number;clientDirectory?:string;publicOrigin?:string}={}) {
+export function createGameServer(options:{lobbyWaitMs?:number;singlePlayer?:boolean;market?:MarketSource;botCount?:number;replayDirectory?:string;durationTicks?:number;clientDirectory?:string;publicOrigin?:string}={}) {
   const httpServer = createServer();
   const guard=options.publicOrigin?originGuard([options.publicOrigin]):()=>undefined;
   const server = new Server({transport: new WebSocketTransport({server: httpServer, maxPayload: 2048,beforeUpgrade:guard}),
