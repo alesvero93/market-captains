@@ -58,3 +58,13 @@ export function parseArenaInput(value: unknown): ArenaInput | null {
   return {schemaVersion: ARENA_SCHEMA_VERSION, seq: v.seq, clientTick: v.clientTick, polarity: v.polarity,
     boost: v.boost, pulse: v.pulse, bank: v.bank, ...normalizeMovement(v.moveX, v.moveY)};
 }
+
+/** Explain known matchmaking failures without sending friends to a different room silently. */
+export function lobbyErrorMessage(error:unknown):string {
+  const message=typeof error==='object'&&error!==null&&'message' in error?String(error.message).toLowerCase():'';
+  if(message.includes('not found'))return 'This invitation has expired: the room was closed or the server restarted. Ask the host for a new invite.';
+  if(message.includes('locked')||message.includes('full'))return 'This room has no available seats or the match has ended. Ask the host for a new invite.';
+  if(message.includes('finished'))return 'This match has ended. Ask the host for a new invite.';
+  if(message.includes('expired'))return 'Your connection reservation expired. Retry this same invitation.';
+  return 'Could not connect to this room. Check your connection and retry this same invitation.';
+}

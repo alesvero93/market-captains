@@ -4,7 +4,7 @@ import brandLogo from './assets/market-captains-logo.png?inline';
 import Phaser from 'phaser';
 import {Client, type Room} from '@colyseus/sdk';
 
-import { ARENA_SCHEMA_VERSION, ARENA_ROOM_NAME, normalizeMovement, AVATARS, type LobbySnapshot, type ArenaInput, type ArenaSnapshot, type Contestant, type MarketFrame, type Polarity } from '@liquidity/shared';
+import { ARENA_SCHEMA_VERSION, ARENA_ROOM_NAME, normalizeMovement, lobbyErrorMessage, AVATARS, type LobbySnapshot, type ArenaInput, type ArenaSnapshot, type Contestant, type MarketFrame, type Polarity } from '@liquidity/shared';
 import { leaderboard, totalScore, SoloArena, MotionPredictor, SnapshotBuffer, syntheticMarket, playerRadius, MATCH, elapsedMatchTick, MEMECOINS, CLOSE_CENTER, mouseSteering } from '@liquidity/sim';
 import './arena.css';
 import { PORTRAITS } from './portraits.js';
@@ -66,6 +66,7 @@ el('copy-invite').onclick=async()=>{try{await navigator.clipboard.writeText(el<H
 el('start-now').onclick=()=>netRoom?.send('start');
 el('leave-lobby').onclick=()=>void returnToStart();
 async function returnToStart(message='Choose your next match.'){
+ if(latest?.phase==='finished'){history.replaceState(null,'',location.pathname);modeUi();}
  joinGeneration++;joining=false;release();connected=false;music.pause();musicPending=false;lobby=undefined;solo=undefined;predictor.reset();snapshots.reset();correction={x:0,y:0};
  const old=netRoom;netRoom=undefined;if(old)void old.leave();
  el('lobby-screen').hidden=true;document.querySelector<HTMLElement>('main')!.hidden=true;el('start-screen').hidden=false;el<HTMLButtonElement>('play').disabled=false;status(message);
@@ -85,7 +86,7 @@ function receiveArena(s:ArenaSnapshot){
  if(s.phase==='finished')music.pause();
 }
 
-el("fresh-room").onclick=()=>{history.replaceState(null,"",location.pathname);void connect(true);};
+el("fresh-room").onclick=()=>{history.replaceState(null,"",location.pathname);modeUi();void connect(true);};
 let solo:SoloArena|undefined, latest:ArenaSnapshot|undefined, previous:ArenaSnapshot|undefined;
 let soloStarted=0;
 let cachedMarket:MarketFrame=syntheticMarket(); let accumulator=0; let lastHud=0;
@@ -164,7 +165,7 @@ async function connect(publicLobby=false){
       room.onLeave(()=>{if(netRoom!==room)return;if(latest?.phase==='finished'){netRoom=undefined;connected=false;status('Match complete');return;}void returnToStart('Connection closed. Join another public lobby.');});
       room.onError(()=>{if(netRoom===room)status('Network error · please retry if the connection closes.');});
       room.send('ready');
-    }catch{if(generation===joinGeneration){await returnToStart('Lobby unavailable, full or already started. Find another public lobby.');el('fresh-room').hidden=false;}}
+    }catch(error){if(generation===joinGeneration){await returnToStart(lobbyErrorMessage(error));el('fresh-room').hidden=false;}}
     finally{if(generation===joinGeneration){joining=false;el<HTMLButtonElement>('play').disabled=false;}}
     return;
   }
@@ -176,9 +177,10 @@ async function connect(publicLobby=false){
 }
 el('again').onclick=()=>void returnToStart();
 el('invite').onclick=async()=>{
-  const url=location.origin;const link=el<HTMLAnchorElement>('invite-link');link.href=url;link.textContent=`Play Market Captains: ${url}`;link.hidden=false;
+  const inRoom=multiplayer&&netRoom&&latest?.phase!=='finished';
+  const url=location.origin+(inRoom?'/?room='+encodeURIComponent(netRoom!.roomId):'');const link=el<HTMLAnchorElement>('invite-link');link.href=url;link.textContent=`Play Market Captains: ${url}`;link.hidden=false;
   try{await navigator.clipboard.writeText(url);}catch{/* Visible link remains available. */}
-  el('notice').textContent='Share the game. Multiplayer invitations are available before a match starts.';
+  el('notice').textContent=inRoom?'Room invite copied: friends can replace bots while this match runs.':'Game link ready to share.';
 };
 setInterval(()=>{
  if(!connected||multiplayer||!solo||!latest||latest.phase==='finished')return;
@@ -224,6 +226,7 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
   }
   const signature=JSON.stringify(s.players.map(p=>[p.id,p.name,p.banked,p.bountyScore,p.eventScore,p.lastBankTick,p.whale,p.hacker]));
   if(signature!==leaderSignature){leaderSignature=signature;el('leaders').replaceChildren(...leaderboard(s.players.filter(p=>!p.hacker)).slice(0,MATCH.maxPlayers).map(p=>{const li=document.createElement('li');li.className=p.id===s.selfId?'self':'';li.textContent=`${p.whale?'WHALE · ':''}${p.id===s.selfId?'YOU':p.name}${p.bot?' · BOT':''}   ${p.banked}`;return li;}));}
+  el('invite').textContent=multiplayer&&s.phase!=='finished'?'COPY ROOM INVITE':'SHARE GAME';
   el('mode-note').textContent=multiplayer?'MULTIPLAYER · 5 TOTAL':`SINGLE PLAYER · ${s.players.filter(p=>p.bot).length} BOTS`;
   el<HTMLButtonElement>('again').hidden=s.phase!=='finished';
 }

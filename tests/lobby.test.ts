@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import {Client,type Room} from '@colyseus/sdk';
 import {createGameServer} from '../apps/server/dist/server.js';
 import {SoloArena,MotionPredictor} from '../packages/sim/dist/index.js';
-import {IDLE_ACTION,ARENA_SCHEMA_VERSION,type LobbySnapshot,type ArenaSnapshot} from '../packages/shared/dist/index.js';
+import {lobbyErrorMessage,IDLE_ACTION,ARENA_SCHEMA_VERSION,type LobbySnapshot,type ArenaSnapshot} from '../packages/shared/dist/index.js';
 const until=async(check:()=>boolean,ms=3500)=>{const end=Date.now()+ms;while(!check()){if(Date.now()>end)throw Error('Lobby transition timed out');await new Promise(r=>setTimeout(r,20));}};
 async function fixture(wait:number){const {server,httpServer}=createGameServer({lobbyWaitMs:wait});await server.listen(0,'127.0.0.1');const addr=httpServer.address();assert.ok(addr&&typeof addr!=='string');const client=new Client(`http://127.0.0.1:${addr.port}`);const rooms:Room[]=[];
  const watch=async(join:Promise<Room>)=>{const room=await join;rooms.push(room);const data:{room:Room;lobby?:LobbySnapshot;arena?:ArenaSnapshot}={room};room.onMessage('lobby',(s:LobbySnapshot)=>data.lobby=s);room.onMessage('arena',(s:ArenaSnapshot)=>data.arena=s);return data;};
  return {client,watch,close:async()=>{for(const room of rooms)if(room.connection.isOpen)await room.leave();await server.gracefullyShutdown(false);}};
 }
-test('public matchmaking shares waiting lobby, deadline does not reset, then fills to five and locks',async()=>{
+test('public matchmaking shares waiting lobby, deadline does not reset, then fills to five and accepts invited replacements',async()=>{
  const f=await fixture(1600);try{
   const a=await f.watch(f.client.joinOrCreate('arena',{name:'A',lobbyWaitMs:0,botCount:0,durationTicks:120}));
   await until(()=>!!a.lobby);assert.ok(a.lobby!.remainingMs>0);assert.equal(a.arena,undefined);
@@ -18,7 +18,8 @@ test('public matchmaking shares waiting lobby, deadline does not reset, then fil
   await until(()=>a.lobby?.players.length===2&&!!b.lobby);assert.equal(a.lobby!.hostId,a.room.sessionId);assert.ok(a.lobby!.remainingMs<=before);
   assert.equal(a.arena,undefined);await until(()=>!!a.arena&&!!b.arena);
   assert.equal(a.arena!.players.length,5);assert.equal(a.arena!.players.filter(p=>p.bot).length,3);assert.ok(a.arena!.remainingTicks>8850);
-  await assert.rejects(f.client.joinById(a.room.roomId));
+  const late=await f.watch(f.client.joinById(a.room.roomId,{name:'LATE FRIEND'}));await until(()=>!!late.arena);
+  assert.equal(late.arena!.players.length,5);assert.equal(late.arena!.players.filter(p=>p.bot).length,2);
   const c=await f.watch(f.client.joinOrCreate('arena'));assert.notEqual(c.room.roomId,a.room.roomId);
  }finally{await f.close();}
 });
@@ -43,6 +44,7 @@ test('full lobby starts immediately without bots and a sixth player opens anothe
   const a=await f.watch(f.client.joinOrCreate('arena'));
   for(let i=1;i<5;i++)await f.watch(f.client.joinById(a.room.roomId));
   await until(()=>!!a.arena);assert.equal(a.arena!.players.length,5);assert.ok(a.arena!.players.every(p=>!p.bot));
+  await assert.rejects(f.client.joinById(a.room.roomId));
   const overflow=await f.watch(f.client.joinOrCreate('arena'));assert.notEqual(overflow.room.roomId,a.room.roomId);
  }finally{await f.close();}
 });
@@ -65,4 +67,32 @@ test('invited guest recovers a missed initial lobby via ready, including after h
   assert.equal(guest.arena!.players.length,5);assert.equal(guest.arena!.players.filter(p=>p.bot).length,3);
   assert.throws(()=>new SoloArena(83,'P',0,undefined,2,5 as 3));
  }finally{await f.close();}
+});
+
+test('host leaving a waiting lobby preserves invitation until the original deadline',async()=>{
+ const f=await fixture(2200);try{
+  const host=await f.watch(f.client.joinOrCreate('arena'));await until(()=>!!host.lobby);
+  const id=host.room.roomId;await host.room.leave();
+  const guest=await f.watch(f.client.joinById(id,{name:'FRIEND'}));await until(()=>!!guest.lobby);
+  assert.equal(guest.lobby!.hostId,guest.room.sessionId);assert.ok(guest.lobby!.remainingMs<=2200);
+  await guest.room.leave();await new Promise(r=>setTimeout(r,2400));await assert.rejects(f.client.joinById(id));
+ }finally{await f.close();}
+});
+test('late invite replaces a bot without resetting the clock, and public matching stays separate',async()=>{
+ const f=await fixture(180000);try{
+  const host=await f.watch(f.client.joinOrCreate('arena'));await until(()=>!!host.lobby);host.room.send('start');await until(()=>!!host.arena);
+  await new Promise(r=>setTimeout(r,200));const before=host.arena!.remainingTicks;
+  const guest=await f.watch(f.client.joinById(host.room.roomId,{name:'LATE'}));await until(()=>!!guest.arena);
+  assert.ok(guest.arena!.remainingTicks<=before);assert.equal(guest.arena!.players.filter(p=>p.bot).length,3);
+  assert.ok(guest.arena!.players.some(p=>p.id===guest.room.sessionId));assert.equal(guest.arena!.players.length,5);
+  const other=await f.watch(f.client.joinOrCreate('arena'));assert.notEqual(other.room.roomId,host.room.roomId);
+ }finally{await f.close();}
+});
+
+test('invitation errors distinguish expired room, full room and network failures',()=>{
+ assert.match(lobbyErrorMessage(new Error('room "abc" not found')),/invitation has expired/);
+ assert.match(lobbyErrorMessage(new Error('room "abc" is locked')),/no available seats/);
+ assert.match(lobbyErrorMessage(new Error('seat reservation expired')),/Retry this same invitation/);
+ assert.match(lobbyErrorMessage(new Error('Failed to fetch')),/Check your connection/);
+ assert.match(lobbyErrorMessage(null),/retry this same invitation/);
 });

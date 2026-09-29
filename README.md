@@ -1,6 +1,6 @@
 # Current release: singleplayer and multiplayer
 
-Choose the mode alongside your name and avatar. Singleplayer runs locally with 3 or 4 bots and three difficulty levels. Multiplayer joins an existing public waiting lobby or creates one; an optional room link invites friends to the same lobby. A shared server deadline starts with the first arrival and never extends beyond three minutes. Five humans start immediately; the host may start early. At launch, bots fill empty seats to 5 total, and the room locks to new arrivals. New matchmaking opens another waiting lobby. Reconnection retains a seat for 15 seconds; abandoned seats become bots.
+Choose the mode alongside your name and avatar. Singleplayer runs locally with 3 or 4 bots and three difficulty levels. Multiplayer joins an existing public waiting lobby or creates one; an optional room link invites friends to the same lobby. A shared server deadline starts with the first arrival and never extends beyond three minutes. Five humans start immediately; the host may start early. At launch, bots fill empty seats to 5 total, and the room leaves public matchmaking. Direct invitations remain usable during the match while a bot seat is available; joining replaces that bot without restarting the clock. New matchmaking opens another waiting lobby. Reconnection retains a seat for 15 seconds; abandoned seats become bots.
 
 Online simulation, scores and health are server-authoritative at 30 Hz. Snapshots are sent at 10 Hz; the client predicts its own motion with bounded reconciliation and interpolates other players. Online matches continue when a tab loses focus or the guide opens; controls are released. Solo uses an absolute five-minute clock and recovers elapsed simulation ticks after browser throttling. Neither the guide nor loss of focus pauses a match. Closing/reloading the page leaves the local match. Render shares one cached CMC feed across all rooms; joining players does not generate provider calls. The service is limited to eight concurrent rooms. Wallets and the final storm destination are seeded per match; wallet shields prevent body-blocking and hostile pulses. Final wallet points are revealed on an animated rank chart (ties use the existing bonus/earliest-deposit rules).
 
@@ -42,7 +42,7 @@ pnpm replay
 pnpm slingshot
 ```
 
-80 tests cover physics, authoritative deposits/economy, replay, input rejection, two-client transport, API mock responses and persistent quotas. Load script runs a complete 9,000-tick simulation with 5 bots; it does not measure browser rendering or internet latency.
+83 tests cover physics, authoritative deposits/economy, replay, input rejection, two-client transport, API mock responses and persistent quotas. Load script runs a complete 9,000-tick simulation with 5 bots; it does not measure browser rendering or internet latency.
 
 See `docs/M6_REPORT.md`, `docs/M7_SUBMISSION_KIT.md` and `docs/ARENA_PREVIEW_REPORT.md` for measured results and remaining acceptance work. This is a local development preview, not a submitted or production-hardened hackathon entry. Public deployment, adversarial network/reconnect tests, external playtesting, video and submission are still pending. Public hosting needs HTTPS/WSS and an explicit origin/admission policy. Local default is loopback; HOST=0.0.0.0 enables managed hosting.
 

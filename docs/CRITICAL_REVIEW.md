@@ -129,3 +129,10 @@ Arcade gravity previously extended beyond visible halos and continued accelerati
 - Five total contestants is enforced by server admission, bot balancing and pure simulation. Solo offers three or four bots. Full five-human lobbies start immediately; a sixth visitor cannot enter that room.
 - Bot target selection now scans fragments once instead of sorting them with repeated contention calculations. Network snapshot/prediction rates remain 10/30 Hz; HUD work is capped at 5 Hz and unchanged leaderboard DOM is reused. Rendering is capped at 60 FPS, the grid is built once, and volatility halos use half the vertices.
 - Validation: 80 passing tests, including invitation synchronization recovery, reconnection, automatic start, overflow and five-contestant enforcement. Two browser sessions verified the same invited lobby and launched together with two humans plus three bots; guest console showed no errors. This verifies the tested flows, not every external device or connection.
+
+
+## 2026-09-29 — Keep invitations usable after countdown
+- Found a deterministic refusal path: begin() explicitly locked running public rooms and onJoin rejected every late arrival even when bot slots remained. Running matches now become private to public matchmaking instead of locked to invitations. A direct invite replaces one bot, preserves the match clock, and cannot exceed five humans/contestants. Full and finished matches remain closed.
+- The in-arena share button now copies the actual room invitation in multiplayer. Waiting rooms survive their host leaving until the original deadline; empty rooms expire at that deadline rather than consuming a server slot forever. Runtime rooms still disappear after all humans leave; invitations also expire on server restart or deploy.
+- Replaced the generic catch-all with distinct expired-room, unavailable-seat, reservation-timeout and connection messages. There is no silent fallback to an unrelated room.
+- 83 tests: late joins both after countdown and early start, preserved timer, bot replacement, separate public matchmaking, full-room rejection, host departure and empty-room expiry, and error classification.

@@ -31,7 +31,10 @@ export class ArenaRoom extends Room {
   private publishLobby(){this.broadcast('lobby',this.lobbyState());}
   private begin(){
     if(!this.waiting)return;
-    this.waiting=false;void this.lock();this.balanceBots();
+    this.waiting=false;this.autoDispose=true;
+    // Hide running games from public matchmaking, but retain direct invitations.
+    // Colyseus automatically locks only when all five human seats are reserved.
+    void this.setPrivate(true);this.balanceBots();
     for(const client of this.clients)client.send('arena',this.snapshot(client.sessionId));
   }
   private balanceBots(){
@@ -61,7 +64,7 @@ export class ArenaRoom extends Room {
     this.setSimulationInterval(()=>{
       if(this.waiting){
         if(!this.deadline)return;
-        if(Date.now()>=this.deadline||this.clients.length>=MATCH.maxPlayers)this.begin();
+        if(Date.now()>=this.deadline||this.clients.length>=MATCH.maxPlayers){if(!this.clients.length){void this.disconnect();return;}this.begin();}
         else {if(Date.now()-this.lastLobby>=1000){this.lastLobby=Date.now();this.publishLobby();}return;}
       }
       if(this.match.phase==='finished')return;
@@ -75,12 +78,12 @@ export class ArenaRoom extends Room {
     },1000/30);
   }
   override onJoin(client:Client,options:unknown):void {
-    if(this.waitMs&&!this.waiting)throw new ServerError(409,'This match has started. Find another public lobby.');
     if(this.match.phase==='finished')throw new ServerError(409,'Match finished: join a new arena.');
+    if(this.match.players.length>=MATCH.maxPlayers&&!this.match.players.some(p=>p.bot))throw new ServerError(409,'This room is full.');
     const {name,avatar}=playerIdentity(options);
     if(this.match.players.length>=MATCH.maxPlayers){const bot=this.match.players.find(p=>p.bot);if(bot){this.match=removePlayer(this.match,bot.id);this.replay.write({type:'leave',id:bot.id});}}
     this.match=addPlayer(this.match,client.sessionId,name,false,avatar);this.gates.set(client.sessionId,new ArenaInputQueue());
-    this.replay.write({type:'join',id:client.sessionId,name,bot:false,avatar});this.balanceBots();if(this.waiting){if(!this.deadline)this.deadline=Date.now()+this.waitMs;this.publishLobby();}else client.send('arena',this.snapshot(client.sessionId));
+    this.replay.write({type:'join',id:client.sessionId,name,bot:false,avatar});this.balanceBots();if(this.waiting){if(!this.deadline){this.deadline=Date.now()+this.waitMs;this.autoDispose=false;}this.publishLobby();}else client.send('arena',this.snapshot(client.sessionId));
   }
   override async onDrop(client:Client):Promise<void> {
     this.match=setConnected(this.match,client.sessionId,false);this.replay.write({type:'connected',id:client.sessionId,connected:false});if(this.waiting)this.publishLobby();
