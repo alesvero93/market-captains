@@ -125,7 +125,7 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 class ArenaScene extends Phaser.Scene {
   private g!:Phaser.GameObjects.Graphics;private sprites=new Map<string,Phaser.GameObjects.Image>();private labels=new Map<string,Phaser.GameObjects.Text>();
-  preload(){this.load.on('progress',(value:number)=>showLoading(Math.round(value*100),'Loading captains and planets…'));for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.svg(`coin-${symbol}`,'data:image/svg+xml;base64,'+btoa(url),{width:160,height:160});}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
+  preload(){this.load.on('progress',(value:number)=>showLoading(Math.round(value*100),'Loading captains and planets…'));for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.image(`coin-${symbol}`,'data:image/svg+xml;base64,'+btoa(url));}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
   create(){this.g=this.add.graphics();hideLoading();}
   sprite(id:string,texture:string,x:number,y:number,size:number){let item=this.sprites.get(id);if(!item){item=this.add.image(x,y,texture);this.sprites.set(id,item);}item.setTexture(texture).setPosition(x,y).setDisplaySize(size,size).setVisible(true);}
 
