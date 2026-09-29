@@ -4,7 +4,7 @@ import { CONFIG } from './config.js';
 import { capVector, clamp, validateNodes, resolveContact } from './fields.js';
 import { randomStep, step } from './index.js';
 
-export const MATCH = Object.freeze({durationTicks: 18000, closeTicks: 3600, bankTicks: 90,
+export const MATCH = Object.freeze({durationTicks: 9000, closeTicks: 1800, bankTicks: 90,
   maxPlayers: 10, fragmentTarget: 80, fragmentCap: 140, pulseRange: 155, pulseCost: 25,
   pulseCooldown: 90, respawnTicks: 90, protectionTicks: 90});
 export const GATES: readonly Gate[] = Object.freeze([

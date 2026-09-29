@@ -25,6 +25,14 @@ test('arcade steering reverses momentum promptly in open space',()=>{
  for(let tick=0;tick<15;tick++)p=predictMotion(p,[],{...IDLE_ACTION,moveX:-1},42,tick);
  assert.ok(p.vx<0,'left steering should reverse rightward motion within half a second');
 });
+test('released controls brake to rest even inside a strong market halo',()=>{
+ const node={...state.nodes[0]!,x:720,y:450,gravity:8000000,flowStrength:1200,momentumN:-1};
+ let p={...state.players[0]!,x:850,y:450,vx:120,vy:60};
+ for(let tick=0;tick<120;tick++)p=predictMotion(p,[node],IDLE_ACTION,42,tick);
+ assert.equal(p.vx,0);assert.equal(p.vy,0);const stopped={...p};
+ for(let tick=120;tick<180;tick++)p=predictMotion(p,[node],IDLE_ACTION,42,tick);
+ assert.equal(p.x,stopped.x);assert.equal(p.y,stopped.y);
+});
 for(const delay of [3,9])test(`prediction reconciles ${delay*1000/30} ms delayed snapshots and skipped updates`,()=>{
  const model=new MotionPredictor();let authoritative={...state.players[0]!};const history=[snapshot(0,authoritative)];model.accept(history[0]!);
  for(let i=0;i<300;i++){

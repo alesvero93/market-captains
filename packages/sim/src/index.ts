@@ -37,12 +37,16 @@ export function accelerationAt(state: SimState, input: SimInput): Vector {
   let field = {x:0,y:0};
   for (const node of state.nodes) {
     const force = fieldAt(node, state.player, polarity, state.seed, state.tick).total;
-    if(input.arcade){field.x += force.x; field.y += force.y;}
+    if(input.arcade){
+      const distance=Math.hypot(state.player.x-node.x,state.player.y-node.y);
+      const envelope=Math.min(1,Math.max(0,(node.fieldRadius-distance)/40));
+      field.x += force.x*envelope; field.y += force.y*envelope;
+    }
     else{x += force.x; y += force.y;}
   }
   // Gameplay controls must overcome even overlapping inward market currents.
   // Cap the combined field, rather than each planet independently.
-  if(input.arcade)field=capVector(field,thrust*(steering?.5:.2));
+  if(input.arcade)field=capVector(field,thrust*(steering?.4:0));
   x += field.x; y += field.y;
   return capVector({x, y}, CONFIG.maxAcceleration);
 }
@@ -53,6 +57,7 @@ export function step(state: SimState, input: SimInput): SimState {
   if (polarity !== -1 && polarity !== 0 && polarity !== 1) throw new Error('Invalid polarity');
   const acceleration = accelerationAt(state, input);
   const v = capVector({x: state.player.vx + acceleration.x * FIXED_DT, y: state.player.vy + acceleration.y * FIXED_DT}, CONFIG.maxSpeed);
+  if(input.arcade&&Math.hypot(input.moveX,input.moveY)<.05&&Math.hypot(v.x,v.y)<3){v.x=0;v.y=0;}
   const p: PlayerState = {...state.player, polarity, vx: v.x, vy: v.y,
     x: state.player.x + v.x * FIXED_DT, y: state.player.y + v.y * FIXED_DT};
   resolveContact(p, state.nodes);

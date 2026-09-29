@@ -1,3 +1,5 @@
+import musicUrl from './assets/turbateknichal.mp3?url';
+import {showLoading,hideLoading} from './loading.js';
 import brandLogo from './assets/market-captains-logo.png?inline';
 import Phaser from 'phaser';
 
@@ -11,15 +13,16 @@ const coinUrls=import.meta.glob('./assets/coins/*.svg',{eager:true,query:'?inlin
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <header><a class="logo" href="/" aria-label="Market Captains home"><img class="brand-logo" src="${brandLogo}" alt="MARKET CAPTAINS" width="240" height="60" /></a><span>THE MARKET IS THE MAP</span><a href="https://coinmarketcap.com/" target="_blank" rel="noopener">Data by CoinMarketCap ↗</a></header>
-<main><div class="headline"><div><p class="overline">SINGLE PLAYER / LOCAL SIMULATION</p><h1>Collect. Grow. Protect your wallet.</h1></div><div class="clock" id="clock">10:00</div></div>
+<main><div class="headline"><div><p class="overline">SINGLE PLAYER / LOCAL SIMULATION</p><h1>Collect. Grow. Protect your wallet.</h1></div><div class="clock" id="clock">05:00</div></div>
 <div class="market"><span id="network" role="status">Choose your captain</span><span id="market">SYNTHETIC</span><span id="population"></span></div>
 <section class="layout"><div class="play"><div id="arena" aria-label="Arena: WASD or arrows, Q toggles LONG SHORT, Shift boosts, Space pulses. Stand still in a wallet to deposit." tabindex="0"></div><div id="notice" role="status">Collect glowing fragments. Stop inside a green wallet for 3 seconds to deposit automatically.</div></div>
 <aside><p class="overline">YOUR CAPTAIN</p><div class="scores"><div><span>CARGO · AT RISK</span><strong id="cargo">0</strong></div><div><span>IN YOUR WALLET</span><strong id="banked">0</strong></div></div><label>Energy <meter id="energy" min="0" max="100" value="100"></meter></label><label>Integrity <meter id="hp" min="0" max="100" value="100"></meter></label><label>Deposit <progress id="bank" max="90" value="0"></progress></label><p class="overline">LEADERBOARD</p><ol id="leaders"></ol><button id="again" hidden>New match</button><p class="hint">A fuller wallet makes a rounder captain. Cargo weighs you down and is lost on elimination. Banked points stay yours.</p></aside></section>
-<section class="controls" aria-label="Controls"><div class="polarities"><button data-polarity="1" aria-pressed="true">△ LONG</button><button data-polarity="-1">▽ SHORT</button></div><button id="boost">BOOST <kbd>Shift</kbd></button><button id="pulse">PULSE <kbd>Space</kbd></button><button id="invite">SHARE GAME</button><button id="sound" aria-pressed="false">Audio off</button></section>
+<section class="controls" aria-label="Controls"><div class="polarities"><button data-polarity="1" aria-pressed="true">△ LONG</button><button data-polarity="-1">▽ SHORT</button></div><button id="boost">BOOST <kbd>Shift</kbd></button><button id="pulse">PULSE <kbd>Space</kbd></button><button id="invite">SHARE GAME</button><button id="sound" aria-pressed="false">Music off</button></section>
 <div class="touch"><div id="stick" aria-label="Joystick touch"><span>✥</span></div><span>Drag to move · tap LONG or SHORT</span></div><footer><span>WASD / ARROWS · Q TOGGLES LONG/SHORT</span><span id="data-note">Synthetic data: no CMC calls.</span><span>SINGLE PLAYER · 3 BOTS</span></footer></main>`;
-document.querySelector('.controls')!.insertAdjacentHTML('afterend',`<a id="invite-link" hidden></a><p id="flow-status" class="flow-status" role="status">LONG: a rising node pushes its current outward. SHORT reverses the current.</p><details class="explain"><summary>How the market changes the map</summary><p>Market cap sets gravity; volume distributes fragments; one-hour momentum directs the current. Volatility comes from prices sampled every five minutes, after warm-up.</p><label for="inspect-node">Inspect a node</label><select id="inspect-node" aria-label="Node to inspect"></select><p id="inspect-values"></p><p>LONG: outward current at rising nodes, inward at falling nodes. SHORT reverses it. Gravity always remains. These are game indices, not percentage changes, bets or forecasts. SYNTHETIC values are illustrative scenarios.</p></details>`);
-document.querySelector('main')!.insertAdjacentHTML('beforebegin',`<section id="start-screen" class="start-screen"><div class="start-copy"><p class="overline">A SMALL UNIVERSE. A VERY BIG WALLET.</p><h1>The market moves.<br>Can you ride it?</h1><p>Dodge the Bitcoin sun, ride the currents and fill your wallet.<br>Single player. Three bots. Smooth local simulation.</p><ul><li><b>Move</b> with WASD or arrows</li><li><b>Q</b> toggles LONG / SHORT · <b>Space</b> pushes rivals away</li><li><b>Shift</b> boosts · stop in wallets to deposit</li></ul><p class="hint">Market data powers the map. No real money. No crypto wallet connection.</p></div><form id="start-form" class="pilot-card"><p class="overline">CHOOSE YOUR MEME CREW</p><div id="avatars" class="avatars">${AVATARS.map((name,i)=>`<button type="button" data-avatar="${i}" aria-label="${name}" aria-pressed="${i===0}"><img src="${PORTRAITS[i]}" alt=""/><span>${name}</span></button>`).join('')}</div><label for="pilot-name">Name or invented ticker</label><input id="pilot-name" maxlength="16" placeholder="MOONBEAN" autocomplete="off" value="MOONBEAN"/><button id="play" type="submit" class="play-button">ENTER THE ARENA →</button><button id="fresh-room" type="button" hidden>FIND ANOTHER ARENA</button><p id="start-status" role="status">Choose a captain: all avatars have the same abilities.</p></form></section>`);
+document.querySelector('.controls')!.insertAdjacentHTML('afterend',`<a id="invite-link" hidden></a><p id="flow-status" class="flow-status" role="status">LONG: a rising node pushes its current outward. SHORT reverses the current.</p><details class="explain"><summary>How the market changes the map</summary><p>Market cap sets gravity; volume distributes fragments; one-hour momentum directs the current. Volatility comes from prices sampled every five minutes, after warm-up.</p><label for="inspect-node">Inspect a node</label><select id="inspect-node" aria-label="Node to inspect"></select><p id="inspect-values"></p><p>LONG: outward current at rising nodes, inward at falling nodes. SHORT reverses it. Gravity acts only inside the halo. Release movement for automatic braking. These are game indices, not percentage changes, bets or forecasts. SYNTHETIC values are illustrative scenarios.</p></details>`);
+document.querySelector('main')!.insertAdjacentHTML('beforebegin',`<section id="start-screen" class="start-screen"><div class="start-copy"><p class="overline">A SMALL UNIVERSE. A VERY BIG WALLET.</p><h1>The market moves.<br>Can you ride it?</h1><p>Dodge the Bitcoin sun, ride the currents and fill your wallet.<br>Five-minute solo matches. Three bots. Smooth local simulation.</p><ul><li><b>Move</b> with WASD or arrows</li><li><b>Q</b> toggles LONG / SHORT · <b>Space</b> pushes rivals away</li><li><b>Shift</b> boosts · stop in wallets to deposit</li></ul><p class="hint">Market data powers the map. No real money. No crypto wallet connection.</p></div><form id="start-form" class="pilot-card"><p class="overline">CHOOSE YOUR MEME CREW</p><div id="avatars" class="avatars">${AVATARS.map((name,i)=>`<button type="button" data-avatar="${i}" aria-label="${name}" aria-pressed="${i===0}"><img src="${PORTRAITS[i]}" alt=""/><span>${name}</span></button>`).join('')}</div><label for="pilot-name">Name or invented ticker</label><input id="pilot-name" maxlength="16" placeholder="MOONBEAN" autocomplete="off" value="MOONBEAN"/><button id="play" type="submit" class="play-button">ENTER THE ARENA →</button><button id="fresh-room" type="button" hidden>FIND ANOTHER ARENA</button><p id="start-status" role="status">Choose a captain: all avatars have the same abilities.</p></form></section>`);
 document.querySelector('.play')!.insertAdjacentHTML('beforeend',`<section id="opportunities" aria-label="Gameplay opportunities"><p class="overline">OPPORTUNITIES <span> / GAMEPLAY</span></p><p id="opportunity-text">Join an arena to read the currents.</p><small id="market-update">Market cap → gravity · volume → fragments · momentum → current · volatility → turbulence</small></section>`);
+document.querySelector('aside')!.insertAdjacentHTML('beforeend','<p class="music-credit">Original soundtrack by the MARKET CAPTAINS team.<br>Free to use · Mr Finn — Turbateknichal</p>');
 document.querySelector('.market')!.prepend(document.querySelector('.clock')!);
 const leftRail=document.createElement('nav');leftRail.className='left-rail';leftRail.setAttribute('aria-label','Game controls and opportunities');
 document.querySelector('.layout')!.prepend(leftRail);
@@ -37,7 +40,12 @@ let solo:SoloArena|undefined, latest:ArenaSnapshot|undefined, previous:ArenaSnap
 let cachedMarket:MarketFrame=syntheticMarket(); let accumulator=0; let lastHud=0;
 let predicted:Contestant|undefined, seq=0, clientTick=0, receivedAt=0;
 let connected=false, polarity:Polarity=1, pulse=false, audioEnabled=false;
-let audio:AudioContext|undefined, lastEventTick=-1;
+let lastEventTick=-1;
+const music=new Audio(musicUrl);music.loop=false;music.preload='none';music.volume=.35;
+function musicStatus(){el('sound').textContent=music.ended?'Music finished':music.paused?'Music off':'Music on';el('sound').setAttribute('aria-pressed',String(!music.paused));}
+music.onended=musicStatus;music.onpause=musicStatus;music.onplay=musicStatus;
+function startMusic(){music.pause();music.currentTime=0;void music.play().then(musicStatus).catch(()=>{musicStatus();});}
+
 const keys=new Set<string>(); const held=new Set<string>(); let joystick={moveX:0,moveY:0};
 function select(value:Polarity){polarity=value;document.querySelectorAll<HTMLButtonElement>('[data-polarity]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.polarity)===value)));}
 document.querySelectorAll<HTMLButtonElement>('[data-polarity]').forEach(b=>b.onclick=()=>select(Number(b.dataset.polarity) as Polarity));
@@ -54,8 +62,8 @@ for(const id of ['boost','pulse']){const b=el(id);b.onpointerdown=e=>{e.preventD
 const stick=el('stick');let stickPointer:number|null=null;
 function moveStick(e:PointerEvent){if(e.pointerId!==stickPointer)return;const r=stick.getBoundingClientRect();joystick=normalizeMovement((e.clientX-r.left-r.width/2)/35,(e.clientY-r.top-r.height/2)/35);}
 stick.onpointerdown=e=>{stickPointer=e.pointerId;stick.setPointerCapture(e.pointerId);moveStick(e);};stick.onpointermove=moveStick;stick.onpointerup=stick.onpointercancel=()=>{stickPointer=null;joystick={moveX:0,moveY:0};};
-el('sound').onclick=()=>{audioEnabled=!audioEnabled;if(audioEnabled){audio??=new AudioContext();void audio.resume();}el('sound').textContent=audioEnabled?'Audio on':'Audio off';el('sound').setAttribute('aria-pressed',String(audioEnabled));};
-function tone(hz:number){if(!audioEnabled||!audio)return;const o=audio.createOscillator(),g=audio.createGain();o.frequency.value=hz;g.gain.setValueAtTime(.035,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.15);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.15);}
+el('sound').onclick=()=>{if(music.ended)return;if(music.paused)void music.play().then(musicStatus).catch(musicStatus);else music.pause();};
+function tone(_hz:number){}
 function status(message:string){el('network').textContent=message;el('start-status').textContent=message;}
 async function refreshMarket(){
   try{
@@ -72,12 +80,12 @@ async function refreshMarket(){
 }
 void refreshMarket();setInterval(()=>void refreshMarket(),60000);
 async function connect(){
-  release();accumulator=0;seq=clientTick=0;lastEventTick=-1;lastHud=0;
+  release();startMusic();accumulator=0;seq=clientTick=0;lastEventTick=-1;lastHud=0;
   const seed=crypto.getRandomValues(new Uint32Array(1))[0]!;
   solo=new SoloArena(seed,el<HTMLInputElement>('pilot-name').value.slice(0,16)||'CAPTAIN',avatar,cachedMarket);
   latest=solo.snapshot();previous=undefined;predicted=latest.players.find(p=>p.id==='solo');
   el('start-screen').hidden=true;document.querySelector<HTMLElement>('main')!.hidden=false;
-  game??=createGame();game.scale.refresh();el('arena').focus();connected=true;
+  if(!game){showLoading(0,'Preparing captains and planets…');game=createGame();}game.scale.refresh();el('arena').focus();connected=true;
   status('● Single player · local');updateHud(latest);
 }
 el('again').onclick=()=>void connect();
@@ -87,7 +95,7 @@ el('invite').onclick=async()=>{
   el('notice').textContent='Share this game: each player has their own solo arena.';
 };
 function localTick(){
-  if(!connected||!solo||!latest||latest.phase==='finished')return;
+  if(!connected||!solo||!latest||latest.phase==='finished'){if(latest?.phase==='finished')music.pause();return;}
   const down=(...ks:string[])=>ks.some(k=>keys.has(k))?1:0;
   const movement=normalizeMovement(down('d','arrowright')-down('a','arrowleft')+joystick.moveX,down('s','arrowdown')-down('w','arrowup')+joystick.moveY);
   const input:ArenaInput={schemaVersion:ARENA_SCHEMA_VERSION,seq:seq++,clientTick:clientTick++,polarity,...movement,boost:keys.has('shift')||held.has('boost'),pulse,bank:Math.hypot(movement.moveX,movement.moveY)<.15};pulse=false;
@@ -115,9 +123,9 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
 }
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 class ArenaScene extends Phaser.Scene {
-  private visualSelf:{x:number;y:number}|undefined;private g!:Phaser.GameObjects.Graphics;private sprites=new Map<string,Phaser.GameObjects.Image>();private labels=new Map<string,Phaser.GameObjects.Text>();
-  preload(){for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.svg(`coin-${symbol}`,url,{width:160,height:160});}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
-  create(){this.g=this.add.graphics();}
+  private g!:Phaser.GameObjects.Graphics;private sprites=new Map<string,Phaser.GameObjects.Image>();private labels=new Map<string,Phaser.GameObjects.Text>();
+  preload(){this.load.on('progress',(value:number)=>showLoading(Math.round(value*100),'Loading captains and planets…'));for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.svg(`coin-${symbol}`,url,{width:160,height:160});}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
+  create(){this.g=this.add.graphics();hideLoading();}
   sprite(id:string,texture:string,x:number,y:number,size:number){let item=this.sprites.get(id);if(!item){item=this.add.image(x,y,texture);this.sprites.set(id,item);}item.setTexture(texture).setPosition(x,y).setDisplaySize(size,size).setVisible(true);}
 
   label(id:string,text:string,x:number,y:number,color='#8ea3b6',size=13){let l=this.labels.get(id);if(!l){l=this.add.text(x,y,text,{fontFamily:'monospace',fontSize:size,color}).setOrigin(.5);this.labels.set(id,l);}l.setText(text).setPosition(x,y).setColor(color).setVisible(true);}
@@ -146,8 +154,7 @@ class ArenaScene extends Phaser.Scene {
     for(const gate of s.gates){g.lineStyle(2,0x78efd0,.8).strokeRoundedRect(gate.x-42,gate.y-42,84,84,12);g.lineStyle(1,0x78efd0,.2).strokeCircle(gate.x,gate.y,gate.radius);this.label(`g${gate.id}`,'WALLET',gate.x,gate.y,'#78efd0',12);}
     for(const f of s.fragments){g.fillStyle(f.event?0xf3c675:0x74dfd3,.85);g.fillTriangle(f.x,f.y-4,f.x+4,f.y,f.x,f.y+4);g.fillTriangle(f.x,f.y-4,f.x-4,f.y,f.x,f.y+4);}
 
-    for(const authoritative of renderTo.players){const old=renderFrom.players.find(p=>p.id===authoritative.id);let p=authoritative.id===s.selfId&&predicted?predicted:{...authoritative,x:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.x+(authoritative.x-old.x)*alpha:authoritative.x,y:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.y+(authoritative.y-old.y)*alpha:authoritative.y};if(authoritative.respawnTick)continue;
-      if(p.id===s.selfId){const v=this.visualSelf;const blend=1-Math.exp(-Math.min(delta,100)/35);this.visualSelf=!v||Math.hypot(p.x-v.x,p.y-v.y)>120?{x:p.x,y:p.y}:{x:v.x+(p.x-v.x)*blend,y:v.y+(p.y-v.y)*blend};p={...p,...this.visualSelf};}
+    for(const authoritative of renderTo.players){const old=renderFrom.players.find(p=>p.id===authoritative.id);let p={...authoritative,x:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.x+(authoritative.x-old.x)*alpha:authoritative.x,y:old&&!old.respawnTick&&Math.hypot(authoritative.x-old.x,authoritative.y-old.y)<150?old.y+(authoritative.y-old.y)*alpha:authoritative.y};if(authoritative.respawnTick)continue;
       if(p.hacker){
         g.fillStyle(0xff334c,.10).fillCircle(p.x,p.y,40);g.lineStyle(2,0xff435a,.85).strokeCircle(p.x,p.y,29);
         g.fillStyle(0x691829).fillTriangle(p.x,p.y-26,p.x-24,p.y+22,p.x+24,p.y+22);

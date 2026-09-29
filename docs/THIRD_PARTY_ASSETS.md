@@ -15,3 +15,8 @@ La selezione iniziale comprende BTC, ETH e quattro tra SOL, BNB, XRP, ADA, DOGE 
 
 
 Le dieci mascotte SVG precedenti sono state sostituite da PNG originali generati con imagegen in una sola tavola e ritagliati su richiesta. File e prompt: docs/media/MARKET_CAPTAINS_AVATAR_SHEET.png e AVATAR_SHEET_PROMPT.md. Nessun personaggio Bored Apes o Pudgy Penguins incorporato.
+
+
+## Original soundtrack
+
+`apps/client/src/assets/turbateknichal.mp3`: supplied by the project owner as “Mr Finn -8 - Turbateknichal.mp3.mpeg”. The owner states that the team composed this music and authorizes free use. In-game attribution: “Original soundtrack by the MARKET CAPTAINS team. Free to use · Mr Finn — Turbateknichal”. This records the owner’s declaration; no third-party rights audit or specific Creative Commons license is implied. Track starts on each new match, never loops, and the Music button pauses/resumes it without restarting.

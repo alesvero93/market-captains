@@ -81,3 +81,8 @@ Planet layout update: BTC remains central and ETH retains its orbit. Each new ar
 Reported: a Brave desktop player experienced uncontrolled drift and jitter. Live probe accepted 177 of 179 sequential inputs over six seconds; snapshot intervals averaged 66 ms and peaked at 153 ms. This does not establish Render CPU congestion. Confirmed design weaknesses: combined gravity could overcome steering, drag was weak, and prediction reconciled a latest-input server rather than a one-command-per-tick simulation.
 
 Public mode now runs locally with three bots, fixed 30 Hz steps capped at three per render frame, pause on focus loss/guide, HUD updates at 5 Hz, capped combined field forces, and stronger idle braking. No gameplay WebSocket or server position corrections. CMC stays server-side; clients read cached normalized frames once per minute without triggering provider requests. Production arena matchmaking is disabled. Remaining risks: slow GPUs can still drop frames; local scores are not authoritative; Brave hardware acceleration and human playtesting remain to verify. Deployment requires pushing the prepared commit.
+
+
+## Five-minute refinement — 29 September 2026
+
+Arcade gravity previously extended beyond visible halos and continued accelerating idle players. It now tapers to zero at halo edges; released controls engage braking and settle to zero velocity. Player rendering uses the same fixed-step interpolation as other contestants, removing a separate self-position filter. Matches last 9000 ticks (five active minutes); market close lasts one minute and both sixty-second hacker visits remain. Music and loader added; deployment/browser audio validation is pending.

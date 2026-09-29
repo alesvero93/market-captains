@@ -1,8 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SoloArena, syntheticMarket } from '../packages/sim/dist/index.js';
+import { SoloArena, syntheticMarket, createMatch } from '../packages/sim/dist/index.js';
 import { IDLE_ACTION } from '../packages/shared/dist/index.js';
 import { createGameServer } from '../apps/server/dist/server.js';
+test('five-minute match retains two one-minute hacker visits before the last minute',()=>{
+ const match=createMatch(83);assert.equal(match.durationTicks,5*60*30);assert.equal(match.closeTicks,60*30);
+ assert.equal(match.hackerWindows.length,2);
+ for(const visit of match.hackerWindows){assert.equal(visit.end-visit.start,60*30);assert.ok(visit.end<=match.durationTicks-match.closeTicks);}
+});
 
 test('solo play progresses deterministically without networking and keeps three bots',()=>{
  const a=new SoloArena(83,'Captain',0),b=new SoloArena(83,'Captain',0);
