@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Client, type Room } from '@colyseus/sdk';
 import { createGameServer } from '../apps/server/dist/server.js';
-import { addPlayer, createMatch, stepMatch, syntheticMarket, playerRadius, validateNodes, orbitNode } from '../packages/sim/dist/index.js';
+import { addPlayer, createMatch, stepMatch, syntheticMarket, playerRadius, CLOSE_CENTER, validateNodes, orbitNode } from '../packages/sim/dist/index.js';
 import { playerIdentity, type ArenaSnapshot } from '../packages/shared/dist/index.js';
 
 test('five to seven separated planets, seeded selection, BTC center and slow ETH orbit for a full match',()=>{
@@ -14,7 +14,7 @@ test('five to seven separated planets, seeded selection, BTC center and slow ETH
    if(i%30===0){validateNodes(s.nodes);const btc=s.nodes.find(n=>n.id===1)!;assert.equal(btc.x,720);assert.equal(btc.y,450);}
  }
  assert.notEqual(s.nodes.find(n=>n.id===1027)!.x,eth.x);
- assert.ok(s.gates.some(g=>Math.hypot(g.x-720,g.y-450)+g.radius<=s.closeRadius));
+ assert.ok(s.gates.some(g=>Math.hypot(g.x-CLOSE_CENTER.x,g.y-CLOSE_CENTER.y)+g.radius<=s.closeRadius));
  const ranked={...syntheticMarket(),nodes:syntheticMarket().nodes.map(n=>({...n,marketRank:n.id===5426?25:5}))};
  assert.equal(createMatch(85,ranked).nodes.some(n=>n.id===5426),false);
 });

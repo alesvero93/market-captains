@@ -23,3 +23,5 @@ aside{padding:12px;min-height:0;display:block;border-left:1px solid #283847;bord
 .market .clock{font-size:18px;flex-shrink:0}
 
 .music-credit{font-size:9px;color:#77939e;line-height:1.5;margin-top:14px;border-top:1px solid #243746;padding-top:10px}aside{display:flex;flex-direction:column}aside .music-credit{margin-top:auto}.left-rail{background:linear-gradient(180deg,#101f2a,#0a1420)}.scores strong{color:#e8f2e7}.market{border-radius:6px}.layout{border-radius:8px;overflow:hidden}#arena:focus{outline:none}.controls button{border-radius:5px}aside ol{line-height:2}#loading-screen progress{appearance:auto}
+
+header{position:relative;justify-content:center}header>a:last-child:not(.logo){position:absolute;right:2vw;font-size:9px;letter-spacing:0}header .logo{margin:0 auto}button:disabled{opacity:.45;cursor:default}.pilot-card #difficulty{padding:0;height:18px;accent-color:#78efd0}#difficulty-label{color:#efd49a}@media(max-width:600px){header>a:last-child:not(.logo){max-width:82px;font-size:8px}}

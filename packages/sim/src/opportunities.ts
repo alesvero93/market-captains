@@ -14,6 +14,6 @@ export function opportunity(s:ArenaSnapshot,polarity:Polarity):string {
   })[0];
   if(!node)return 'Explore the arena and collect glowing fragments.';
   const count=s.fragments.filter(f=>Math.hypot(f.x-node.x,f.y-node.y)<node.fieldRadius).length;
-  const flow=Math.abs(node.momentumN)<.02?'almost no current':`${polarity===1?'LONG':'SHORT'} current ${node.momentumN*polarity>0?'outward':'inward'}`;
-  return `${s.marketMode==='SYNTHETIC'?'SYNTHETIC · ':''}${node.symbol} · ${count} nearby fragments · ${flow}${node.volatilityN>.6?' · high turbulence':''}. Gravity still pulls inward.`;
+  const flow=node.id===1?(polarity===1?'clockwise sling':'counterclockwise sling'):Math.abs(node.momentumN)<.02?'almost no current':`${polarity===1?'LONG':'SHORT'} current ${node.momentumN*polarity>0?'outward':'inward'}`;
+  return `${s.marketMode==='SYNTHETIC'?'SYNTHETIC · ':''}${node.symbol} · ${count} nearby fragments · ${flow}${node.volatilityN>.6?' · high turbulence':''}. ${node.id===1?'Solar heat drains health; the core destroys your ship.':'Gravity still pulls inward.'}`;
 }

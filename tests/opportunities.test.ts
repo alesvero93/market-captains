@@ -7,7 +7,7 @@ function snapshot():ArenaSnapshot {
  return {schemaVersion:ARENA_SCHEMA_VERSION,matchId:'test',selfId:'p',seed:7,tick:100,ackSeq:0,players:s.players,nodes:s.nodes,fragments:s.fragments,gates:s.gates,events:[],remainingTicks:17900,phase:'playing',closeRadius:1000,surge:null,marketVersion:1,marketMode:'SYNTHETIC',marketSourceTime:null,marketMessage:'Synthetic'};
 }
 test('opportunities reverse the described current without changing market facts',()=>{
- const s=snapshot();s.nodes=[{...s.nodes[0]!,momentumN:.7}];
+ const s=snapshot();s.nodes=[{...s.nodes[0]!,id:1027,symbol:'ETH',momentumN:.7}];
  assert.match(opportunity(s,1),/SYNTHETIC.*LONG current outward/);
  assert.match(opportunity(s,-1),/SHORT current inward/);
  s.nodes=[{...s.nodes[0]!,momentumN:.001}];assert.match(opportunity(s,1),/almost no current/);

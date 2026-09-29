@@ -65,6 +65,6 @@ test('settled neighbours can finish deposits without endless contact interruptio
 test('full seeded match bots collect and bank actively without pulse spam',()=>{
  let s=createMatch(20260923);for(let i=0;i<10;i++)s=addPlayer(s,`bot-${i}`,`BOT ${i}`,true);
  for(let i=0;i<MATCH.durationTicks;i++)s=stepMatch(s,Object.fromEntries(s.players.map(p=>[p.id,botAction(s,p)])));
- assert.equal(s.phase,'finished');assert.ok(s.metrics.banks>100);assert.ok(s.metrics.pickups>1000);assert.ok(s.metrics.pulses<500);
+ assert.equal(s.phase,'finished');/* Higher-value drops and solar avoidance change pickup count; require useful banked results. */assert.ok(s.metrics.banks>70);assert.ok(s.metrics.pickups>600);assert.ok(s.players.reduce((sum,p)=>sum+p.banked,0)>3500);assert.ok(s.metrics.pulses<500);
  assert.equal(s.players.length,10);assert.ok(s.players.every(p=>!p.hacker));
 });

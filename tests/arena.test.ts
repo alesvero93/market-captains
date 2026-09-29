@@ -37,7 +37,7 @@ test('input gate rejects injection and reordering, preserves one-shot pulse and 
 });
 test('stale feed suppresses surges; match closes and freezes at configured end',()=>{
  let s=createMatch(1,{...syntheticMarket(),mode:'STALE'},1200);for(let i=0;i<1200;i++)s=stepMatch(s,{});
- assert.equal(s.surge,null);assert.equal(s.phase,'finished');assert.equal(s.closeRadius,320);assert.equal(stepMatch(s,{}),s);
+ assert.equal(s.surge,null);assert.equal(s.phase,'finished');assert.equal(s.closeRadius,230);assert.equal(stepMatch(s,{}),s);
  const volatile={...syntheticMarket(),nodes:syntheticMarket().nodes.map(n=>({...n,volatilityN:.8}))};
  let live=createMatch(1,volatile);for(let i=0;i<660;i++)live=stepMatch(live,{});assert.equal(live.surge?.stage,'telegraph');
 });

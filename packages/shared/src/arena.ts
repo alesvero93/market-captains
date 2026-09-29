@@ -1,6 +1,6 @@
 import type { MarketNode, PlayerState, Polarity } from './index.js';
 import { normalizeMovement } from './index.js';
-export const ARENA_SCHEMA_VERSION = 5 as const;
+export const ARENA_SCHEMA_VERSION = 6 as const;
 export const AVATARS = ['MOONBEAN','HODLOG','FROGGY','BLOB','SATCAT','WHALEY','PEPPER','ROCKET','JELLY','NUGGET'] as const;
 export function playerIdentity(value:unknown):{name:string;avatar:number} {
   const v=value&&typeof value==='object'?value as Record<string,unknown>:{};
@@ -28,7 +28,8 @@ export interface Contestant extends PlayerState {
   respawnTick: number; protectedUntil: number; bankBlockedUntil: number;
   lastAttacker: string; lastAttackTick: number; whale: boolean;
 }
-export interface Fragment { id: number; x: number; y: number; vx: number; vy: number; value: number; event: boolean }
+export interface Airdrop { name:string; x:number; y:number; start:number; end:number }
+export interface Fragment { diamond?:boolean; id: number; x: number; y: number; vx: number; vy: number; value: number; event: boolean }
 export interface Gate { id: number; x: number; y: number; radius: number }
 export interface GameEvent { type: 'pulse' | 'bank' | 'elimination' | 'respawn'; tick: number; x: number; y: number; playerId: string; amount: number }
 export interface Surge { nodeId: number; startTick: number; stage: 'telegraph' | 'active' | 'decay' }
@@ -36,6 +37,7 @@ export interface ArenaSnapshot {
   schemaVersion: typeof ARENA_SCHEMA_VERSION; matchId: string; selfId: string; seed: number;
   tick: number; ackSeq: number; players: Contestant[]; nodes: readonly MarketNode[];
   fragments: Fragment[]; gates: readonly Gate[]; events: GameEvent[];
+  globalPolarity?: Polarity; airdrop?: Airdrop | undefined;
   remainingTicks: number; phase: 'playing' | 'closing' | 'finished'; closeRadius: number; surge: Surge | null;
   marketVersion: number; marketMode: MarketMode; marketSourceTime: number | null; marketMessage: string;
 }

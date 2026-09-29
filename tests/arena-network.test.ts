@@ -18,7 +18,7 @@ test('two real clients share arena, cannot inject score/options, and see disconn
  await until(()=>dropped&&reconnected);await until(()=>a!.ackSeq===-1);
  assert.equal(first.sessionId,session);assert.equal(a!.players.length,2);
  first.send('input',{schemaVersion:ARENA_SCHEMA_VERSION,seq:0,clientTick:0,...IDLE_ACTION,polarity:-1});
- await until(()=>a!.ackSeq===0&&b!.players.find(p=>p.id===session)?.polarity===-1);
+ await until(()=>a!.ackSeq===0&&b!.players.find(p=>p.id===session)?.polarity===1); // Non-whales cannot reverse the shared current.
  await second.leave();rooms.pop();await until(()=>a!.players.length===1);
  }finally{for(const r of rooms)if(r.connection.isOpen)await r.leave();await server.gracefullyShutdown(false);}
 });

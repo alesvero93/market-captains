@@ -4,7 +4,7 @@ The public preview runs one local player and three bots. Movement and scoring ar
 
 # MARKET CAPTAINS — playable arena preview
 
-Server-authoritative multiplayer arena: five to seven market planets (BTC central, ETH in a slow orbit), polarity currents, fragments, cargo mass, boost, pulse, 3-second bank channels, elimination/respawn, leaderboard, volatility surge and Market Close. At most 10 characters per room, with bots yielding slots to humans. The original field lab is development-only.
+Five-minute single-player arena: five to seven market planets (BTC central, ETH in a slow orbit), polarity currents, fragments, cargo mass, boost, pulse, 3-second bank channels, elimination/respawn, leaderboard, volatility surge and Market Close. Three bots with selectable difficulty. The retained multiplayer implementation has a 10-character limit but is not enabled in production. The original field lab is development-only.
 
 ## Run locally
 
@@ -15,7 +15,9 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open http://127.0.0.1:5173/. WASD/arrows move, Q switches LONG/SHORT, Shift boosts, Space pulses, deposit automatically inside a green wallet while stationary for 3 seconds. Cargo is at risk; deposited points survive elimination. A match lasts 10 minutes. Four bots make solo testing possible; another browser joins the same available room. Touch controls and optional audio are included.
+Open http://127.0.0.1:5173/. Hold left mouse to steer toward the cursor; right mouse or Shift boosts. WASD/arrows remain available. Space pulses. Stop inside a green wallet for 3 seconds to deposit. Health (85) and regenerating fuel are separate. Matches last five minutes; SHARE GAME gives each friend a separate solo arena.
+
+The biggest active banked wallet becomes the whale and alone controls the shared LONG/SHORT current (Q, 2-second reversal cooldown). It drops a blue 10-point diamond every 3 seconds, collectible by everyone except the current whale. Bitcoin has tangential clockwise/counterclockwise flow, damaging solar heat and a lethal core. Other planets retain their existing attraction/current mechanics. One of five fictional memecoins appears once for 30 seconds, dropping 30 fragments worth 15 each. The last-minute storm shrinks toward the central wallet, ramps up outside damage and increases newly spawned fragment value. Choose Relaxed, Challenging or Ruthless bots before a match; no extra CMC calls or extra bot slots are used.
 
 The backend runs at 127.0.0.1:2567. Stop with Ctrl+C. Server/shared/sim edits require rebuilding and restarting; client edits reload automatically. Windows may require `pnpm.cmd`.
 

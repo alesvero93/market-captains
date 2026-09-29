@@ -36,7 +36,12 @@ export function accelerationAt(state: SimState, input: SimInput): Vector {
   let y = move.moveY * thrust - drag * state.player.vy;
   let field = {x:0,y:0};
   for (const node of state.nodes) {
-    const force = fieldAt(node, state.player, polarity, state.seed, state.tick).total;
+    let force = fieldAt(node, state.player, polarity, state.seed, state.tick).total;
+    if(input.arcade&&node.id===1){
+      const dx=state.player.x-node.x,dy=state.player.y-node.y,d=Math.max(1,Math.hypot(dx,dy));
+      const strength=260*(.65+.35*Math.abs(node.momentumN))*Math.max(0,1-d/node.fieldRadius);
+      force={x:-dy/d*strength*(polarity||1),y:dx/d*strength*(polarity||1)};
+    }
     if(input.arcade){
       const distance=Math.hypot(state.player.x-node.x,state.player.y-node.y);
       const envelope=Math.min(1,Math.max(0,(node.fieldRadius-distance)/40));
@@ -94,3 +99,5 @@ export function slingshotInput(tick: number): SimInput {
   return {moveX: 0, moveY: 0, polarity: tick < SLINGSHOT_SWITCH_TICK ? 0 : 1};
 }
 export { opportunity } from './opportunities.js';
+
+export {mouseSteering} from './mouse-steering.js';

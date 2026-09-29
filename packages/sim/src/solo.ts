@@ -4,8 +4,9 @@ import { addPlayer, applyMarket, botAction, createMatch, stepMatch, syntheticMar
 /** One local authority: no network prediction or server corrections. */
 export class SoloArena {
   private state;
-  constructor(seed:number,name:string,avatar:number,market:MarketFrame=syntheticMarket()){
+  constructor(seed:number,name:string,avatar:number,market:MarketFrame=syntheticMarket(),difficulty:1|2|3=2){
     this.state=addPlayer(createMatch(seed,market),'solo',name,false,avatar);
+    this.state.difficulty=difficulty;
     for(let i=1;i<=3;i++)this.state=addPlayer(this.state,`bot-${i}`,`BOT ${i}`,true,i);
   }
   market(frame:MarketFrame){this.state=applyMarket(this.state,frame);}
@@ -19,7 +20,7 @@ export class SoloArena {
     const m=this.state;
     return {schemaVersion:ARENA_SCHEMA_VERSION,matchId:`solo-${m.seed}`,selfId:'solo',seed:m.seed,tick:m.tick,ackSeq:m.tick,
       players:m.players,nodes:m.nodes,fragments:m.fragments,gates:m.gates,events:m.events,remainingTicks:Math.max(0,m.durationTicks-m.tick),
-      phase:m.phase,closeRadius:m.closeRadius,surge:m.surge,marketVersion:m.market.version,marketMode:m.market.mode,
+      globalPolarity:m.globalPolarity,airdrop:m.tick>=m.airdrop.start&&m.tick<m.airdrop.end?m.airdrop:undefined,phase:m.phase,closeRadius:m.closeRadius,surge:m.surge,marketVersion:m.market.version,marketMode:m.market.mode,
       marketSourceTime:m.market.sourceTime,marketMessage:m.market.message};
   }
 }
