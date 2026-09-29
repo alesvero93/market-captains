@@ -1,12 +1,12 @@
 # Current release: singleplayer and multiplayer
 
-Choose the mode alongside your name and avatar. Singleplayer runs locally with 3, 4 or 5 bots and three difficulty levels. Multiplayer joins an existing public waiting lobby or creates one; an optional room link invites friends to the same lobby. A shared server deadline starts with the first arrival and never extends beyond three minutes. Ten humans start immediately; the host may start early. At launch, bots fill empty seats to 10 total, and the room locks to new arrivals. New matchmaking opens another waiting lobby. Reconnection retains a seat for 15 seconds; abandoned seats become bots.
+Choose the mode alongside your name and avatar. Singleplayer runs locally with 3 or 4 bots and three difficulty levels. Multiplayer joins an existing public waiting lobby or creates one; an optional room link invites friends to the same lobby. A shared server deadline starts with the first arrival and never extends beyond three minutes. Five humans start immediately; the host may start early. At launch, bots fill empty seats to 5 total, and the room locks to new arrivals. New matchmaking opens another waiting lobby. Reconnection retains a seat for 15 seconds; abandoned seats become bots.
 
 Online simulation, scores and health are server-authoritative at 30 Hz. Snapshots are sent at 10 Hz; the client predicts its own motion with bounded reconciliation and interpolates other players. Online matches continue when a tab loses focus or the guide opens; controls are released. Solo uses an absolute five-minute clock and recovers elapsed simulation ticks after browser throttling. Neither the guide nor loss of focus pauses a match. Closing/reloading the page leaves the local match. Render shares one cached CMC feed across all rooms; joining players does not generate provider calls. The service is limited to eight concurrent rooms. Wallets and the final storm destination are seeded per match; wallet shields prevent body-blocking and hostile pulses. Final wallet points are revealed on an animated rank chart (ties use the existing bonus/earliest-deposit rules).
 
 # MARKET CAPTAINS — playable arena preview
 
-Five-minute arena: five to seven market planets (BTC central, ETH in a slow orbit), polarity currents, fragments, cargo mass, boost, pulse, 3-second bank channels, elimination/respawn, leaderboard, volatility surge and Market Close. Solo has 3–5 bots with selectable difficulty; multiplayer has up to 10 total participants. The original field lab is development-only.
+Five-minute arena: five to seven market planets (BTC central, ETH in a slow orbit), polarity currents, fragments, cargo mass, boost, pulse, 3-second bank channels, elimination/respawn, leaderboard, volatility surge and Market Close. Solo has 3–4 bots with selectable difficulty; multiplayer has up to 5 total participants. The original field lab is development-only.
 
 ## Run locally
 
@@ -42,7 +42,7 @@ pnpm replay
 pnpm slingshot
 ```
 
-55 tests cover physics, authoritative deposits/economy, replay, input rejection, two-client transport, API mock responses and persistent quotas. Load script runs a complete 18,000-tick simulation with 10 bots; it does not measure browser rendering or internet latency.
+80 tests cover physics, authoritative deposits/economy, replay, input rejection, two-client transport, API mock responses and persistent quotas. Load script runs a complete 9,000-tick simulation with 5 bots; it does not measure browser rendering or internet latency.
 
 See `docs/M6_REPORT.md`, `docs/M7_SUBMISSION_KIT.md` and `docs/ARENA_PREVIEW_REPORT.md` for measured results and remaining acceptance work. This is a local development preview, not a submitted or production-hardened hackathon entry. Public deployment, adversarial network/reconnect tests, external playtesting, video and submission are still pending. Public hosting needs HTTPS/WSS and an explicit origin/admission policy. Local default is loopback; HOST=0.0.0.0 enables managed hosting.
 
@@ -67,6 +67,6 @@ Player-facing arena, onboarding, field lab and feed messages are in English. The
 
 Bots avoid solid cores, seek safer fragments, deposit at different wallet approaches, preserve energy and pulse only for a useful target or to escape the hacker. Settled neighbours no longer continually cancel one another's deposits. LONG/SHORT has animated directional chevrons; almost-zero momentum is honestly shown as weak rather than exaggerated.
 
-The red HACKER temporarily occupies one existing bot slot. Its seeded, non-overlapping visits last 60 seconds each, before Market Close. It moves at 58 arena units/second, drains at most 2 cargo points/second per victim on contact, cannot collect or deposit, and is excluded from wallet shields. Pulse pushes it away. Wallet balances cannot be stolen. It never displaces a human: an arena with ten humans has no hacker. Very short internal test matches omit the encounters. No API calls are added by these features.
+The red HACKER temporarily occupies one existing bot slot. Its seeded, non-overlapping visits last 60 seconds each, before Market Close. It moves at 58 arena units/second, drains at most 2 cargo points/second per victim on contact, cannot collect or deposit, and is excluded from wallet shields. Pulse pushes it away. Wallet balances cannot be stolen. It never displaces a human: an arena with five humans has no hacker. Very short internal test matches omit the encounters. No API calls are added by these features.
 
 Social artwork: `docs/media/MARKET_CAPTAINS_X.png` (generated promotional illustration, not a gameplay screenshot). Publishing, human Internet testing, video and cross-linked X/DoraHacks submission remain pending. Internal `@liquidity/*` package identifiers and historical archive filenames are retained intentionally.

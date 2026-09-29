@@ -48,19 +48,19 @@ test('arena creation is bounded and a released slot becomes available', {timeout
  const replacement=await client.create('arena');replacement.onMessage('arena',()=>{});rooms.push(replacement);
  }finally{for(const r of rooms)if(r.connection.isOpen)await r.leave();await server.gracefullyShutdown(false);}
 });
-test('10 total slots replace bots, overflow opens another arena and invites join the same room', {timeout:15000},async()=>{
+test('5 total slots replace bots, overflow opens another arena and invites join the same room', {timeout:15000},async()=>{
  const {server,httpServer}=createGameServer();await server.listen(0,'127.0.0.1');const address=httpServer.address();assert.ok(address&&typeof address!=='string');
  const client=new Client(`http://127.0.0.1:${address.port}`),rooms:Room[]=[];let snapshot:ArenaSnapshot|undefined;
  const until=async(f:()=>boolean)=>{const end=Date.now()+3000;while(!f()){if(Date.now()>end)throw Error('timeout');await new Promise(r=>setTimeout(r,20));}};
  try{
   const first=await client.joinOrCreate('arena',{name:'MOON',avatar:3});rooms.push(first);first.onMessage('arena',(s:ArenaSnapshot)=>snapshot=s);
   const friend=await client.joinById(first.roomId,{name:'FRIEND',avatar:7});rooms.push(friend);friend.onMessage('arena',()=>{});
-  for(let i=2;i<10;i++){const r=await client.joinOrCreate('arena');r.onMessage('arena',()=>{});rooms.push(r);assert.equal(r.roomId,first.roomId);}
-  await until(()=>snapshot?.players.length===10&&snapshot.players.every(p=>!p.bot));
+  for(let i=2;i<5;i++){const r=await client.joinOrCreate('arena');r.onMessage('arena',()=>{});rooms.push(r);assert.equal(r.roomId,first.roomId);}
+  await until(()=>snapshot?.players.length===5&&snapshot.players.every(p=>!p.bot));
   assert.equal(snapshot!.players.find(p=>p.id===first.sessionId)!.avatar,3);
   const overflow=await client.joinOrCreate('arena');overflow.onMessage('arena',()=>{});rooms.push(overflow);assert.notEqual(overflow.roomId,first.roomId);
   await assert.rejects(client.joinById(first.roomId));
-  await friend.leave();rooms.splice(1,1);await until(()=>snapshot!.players.filter(p=>p.bot).length===1);assert.equal(snapshot!.players.length,10);
+  await friend.leave();rooms.splice(1,1);await until(()=>snapshot!.players.filter(p=>p.bot).length===1);assert.equal(snapshot!.players.length,5);
  }finally{for(const r of rooms)if(r.connection.isOpen)await r.leave();await server.gracefullyShutdown(false);}
 });
 

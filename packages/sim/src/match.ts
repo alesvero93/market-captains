@@ -8,7 +8,7 @@ import { randomStep, step } from './index.js';
 export const CLOSE_CENTER={x:720,y:590} as const;
 export const MEMECOINS=['BARKDROP','CATNIP','FROGGO','BONKBEAN','MOONMOO'] as const;
 export const MATCH = Object.freeze({health:85, durationTicks: 9000, closeTicks: 1800, bankTicks: 90,
-  maxPlayers: 10, fragmentTarget: 80, fragmentCap: 140, pulseRange: 155, pulseCost: 25,
+  maxPlayers: 5, fragmentTarget: 80, fragmentCap: 140, pulseRange: 155, pulseCost: 25,
   pulseCooldown: 90, respawnTicks: 90, protectionTicks: 90});
 export const GATES: readonly Gate[] = Object.freeze([
   Object.freeze({id: 1, x: 105, y: 110, radius: 60}),
@@ -382,15 +382,16 @@ export function botAction(state:MatchState,p:Contestant):ActionInput {
   })[0]??state.gates[2]!;
   const skill=state.difficulty;
   const banking=p.cargo>=35+skill*10+(personality%3)*5||p.cargo>0&&(p.bankTicks>0||p.integrity<40||state.phase==='closing');
-  let target:{x:number;y:number}=banking?gate:[...state.fragments].filter(f=>
-    (!f.diamond||!p.whale)&&
-    (state.phase!=='closing'||Math.hypot(f.x-state.closeCenter.x,f.y-state.closeCenter.y)<state.closeRadius-45)&&
-    !state.nodes.some(n=>Math.hypot(f.x-n.x,f.y-n.y)<(n.id===1?n.fieldRadius*.82:n.radius+playerRadius(p)+12)))
-    .sort((a,b)=>{
-      const cost=(f:Fragment)=>Math.hypot(f.x-p.x,f.y-p.y)/(skill===1?1:Math.sqrt(f.value))+
-        (skill===3?state.players.filter(q=>q.id!==p.id&&!q.hacker&&!q.respawnTick&&Math.hypot(q.x-f.x,q.y-f.y)<45).length*35:0);
-      return cost(a)-cost(b)||a.id-b.id;
-    })[0]??{x:gate.x+Math.cos(personality*2.39996+Math.floor(state.tick/180))*130,y:gate.y+Math.sin(personality*2.39996+Math.floor(state.tick/180))*130};
+  // Find one target in linear time; avoid sorting all fragments and repeatedly
+  // recomputing contention for every comparator call on every simulation tick.
+  let best:Fragment|undefined,bestCost=Infinity;
+  if(!banking)for(const f of state.fragments){
+    if((f.diamond&&p.whale)||(state.phase==='closing'&&Math.hypot(f.x-state.closeCenter.x,f.y-state.closeCenter.y)>=state.closeRadius-45)||state.nodes.some(n=>Math.hypot(f.x-n.x,f.y-n.y)<(n.id===1?n.fieldRadius*.82:n.radius+playerRadius(p)+12)))continue;
+    let cost=Math.hypot(f.x-p.x,f.y-p.y)/(skill===1?1:Math.sqrt(f.value));
+    if(skill===3)for(const q of state.players)if(q.id!==p.id&&!q.hacker&&!q.respawnTick&&Math.hypot(q.x-f.x,q.y-f.y)<45)cost+=35;
+    if(cost<bestCost||(cost===bestCost&&f.id<(best?.id??Infinity))){best=f;bestCost=cost;}
+  }
+  let target:{x:number;y:number}=banking?gate:best??{x:gate.x+Math.cos(personality*2.39996+Math.floor(state.tick/180))*130,y:gate.y+Math.sin(personality*2.39996+Math.floor(state.tick/180))*130};
   // Spread deposits around a wallet so bots do not continually break each other's channel.
   if(banking){const angle=personality*2.39996;target={x:gate.x+Math.cos(angle)*21,y:gate.y+Math.sin(angle)*21};}
   const distance=Math.hypot(target.x-p.x,target.y-p.y);

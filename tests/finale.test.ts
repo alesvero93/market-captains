@@ -11,8 +11,8 @@ test('1000 seeded layouts retain three separated safe wallets and a random reach
  }
  assert.ok(destinations.size>990);
 });
-test('ten overlapping captains can all deposit; empty bots leave instead of guarding the wallet',()=>{
- let s=createMatch(42);for(let i=0;i<10;i++)s=addPlayer(s,String(i),String(i),i>0);
+test('five overlapping captains can all deposit; empty bots leave instead of guarding the wallet',()=>{
+ let s=createMatch(42);for(let i=0;i<5;i++)s=addPlayer(s,String(i),String(i),i>0);
  s.nodes=[];s.baseNodes=[];s.fragments=[];
  for(const p of s.players)Object.assign(p,{x:s.gates[0]!.x,y:s.gates[0]!.y,cargo:40});
  for(let i=0;i<90;i++)s=stepMatch(s,Object.fromEntries(s.players.map(p=>[p.id,{...IDLE_ACTION,bank:true}])));
