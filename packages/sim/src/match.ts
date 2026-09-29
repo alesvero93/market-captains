@@ -71,7 +71,7 @@ export interface MatchState {
   hackerWindows:readonly {start:number;end:number}[];
   tick:number; seed:number; rngState:number; nextFragmentId:number; players:Contestant[];
   nodes:readonly MarketNode[]; baseNodes:readonly MarketNode[]; fragments:Fragment[];
-  gates:readonly Gate[]; events:GameEvent[]; surge:Surge|null; surgeCandidateTicks:number; nextSurgeTick:number;
+  closeCenter:{x:number;y:number}; gates:readonly Gate[]; events:GameEvent[]; surge:Surge|null; surgeCandidateTicks:number; nextSurgeTick:number;
   durationTicks:number; closeTicks:number; closeRadius:number; phase:'playing'|'closing'|'finished';
   market:MarketFrame; metrics:MatchMetrics; bountyClaims:Record<string,number>;
 }
@@ -91,8 +91,19 @@ export function hackerSchedule(seed:number,durationTicks:number):readonly {start
 export function createMatch(seed:number, market=syntheticMarket(), durationTicks:number=MATCH.durationTicks):MatchState {
   if(!Number.isInteger(seed)||seed<0||seed>0xffffffff||!Number.isSafeInteger(durationTicks)||durationTicks<120) throw new Error('Invalid match configuration');
   const nodes=selectArenaNodes(market.nodes,seed);
+  const gates:Gate[]=[];let layoutRng=seed^0x57414c4c;
+  const rnd=()=>{const r=randomStep(layoutRng);layoutRng=r.state;return r.value;};
+  const candidates:{x:number;y:number;order:number}[]=[];
+  for(let y=120;y<=780;y+=55)for(let x=120;x<=1320;x+=60)candidates.push({x,y,order:rnd()});
+  for(const p of candidates.sort((a,b)=>a.order-b.order)){
+    if(Math.hypot(p.x-720,p.y-450)<350||nodes.some(n=>n.id!==1027&&Math.hypot(p.x-n.x,p.y-n.y)<n.radius+120)||gates.some(g=>Math.hypot(p.x-g.x,p.y-g.y)<320))continue;
+    gates.push({id:gates.length+1,x:p.x,y:p.y,radius:60});if(gates.length===3)break;
+  }
+  if(gates.length!==3)throw new Error('Unable to place safe wallets');
+  const anchor=gates[Math.floor(rnd()*gates.length)]!;
+  const closeCenter={x:anchor.x+(rnd()-.5)*70,y:anchor.y+(rnd()-.5)*70};
   const roll=randomStep(seed^0x4d454d45),when= Math.floor(durationTicks*(.25+roll.value*.25));
-  const state:MatchState={difficulty:2,globalPolarity:1,polarityReadyTick:0,airdrop:{name:MEMECOINS[Math.floor(randomStep(roll.state).value*5)]!,x:1120,y:450,start:when,end:when+900},hackerWindows:hackerSchedule(seed,durationTicks),tick:0,seed,rngState:seed,nextFragmentId:1,players:[],nodes,baseNodes:nodes,fragments:[],gates:GATES,
+  const state:MatchState={difficulty:2,globalPolarity:1,polarityReadyTick:0,airdrop:{name:MEMECOINS[Math.floor(randomStep(roll.state).value*5)]!,x:1120,y:450,start:when,end:when+900},hackerWindows:hackerSchedule(seed,durationTicks),tick:0,seed,rngState:seed,nextFragmentId:1,players:[],nodes,baseNodes:nodes,fragments:[],gates,closeCenter,
     events:[],surge:null,surgeCandidateTicks:0,nextSurgeTick:600,durationTicks,closeTicks:Math.min(MATCH.closeTicks,Math.floor(durationTicks/5)),
     closeRadius:1000,phase:'playing',market:{...market,nodes},metrics:{pickups:0,banks:0,interruptedBanks:0,pulses:0,eliminations:0,respawns:0,boostTicks:0},bountyClaims:{}};
   refill(state,MATCH.fragmentTarget);
@@ -100,7 +111,7 @@ export function createMatch(seed:number, market=syntheticMarket(), durationTicks
 }
 function random(state:MatchState):number {const r=randomStep(state.rngState);state.rngState=r.state;return r.value;}
 function spawnPosition(state:MatchState):{x:number;y:number} {
-  const choices=state.phase==='closing'?state.gates.filter(g=>Math.hypot(g.x-CLOSE_CENTER.x,g.y-CLOSE_CENTER.y)<state.closeRadius-25):state.gates;
+  const choices=state.phase==='closing'?state.gates.filter(g=>Math.hypot(g.x-state.closeCenter.x,g.y-state.closeCenter.y)<state.closeRadius-25):state.gates;
   const gate=choices[Math.floor(random(state)*choices.length)]??state.gates[2]!;
   const angle=random(state)*Math.PI*2;
   return {x:clamp(gate.x+Math.cos(angle)*35,25,1415),y:clamp(gate.y+Math.sin(angle)*35,25,875)};
@@ -176,7 +187,7 @@ function refill(state:MatchState,target:number) {
     const radius=n.radius+35+random(state)*Math.max(20,n.fieldRadius-n.radius-45);
     const x=n.x+Math.cos(angle)*radius,y=n.y+Math.sin(angle)*radius;
     if(x<24||x>1416||y<24||y>876||state.nodes.some(other=>Math.hypot(x-other.x,y-other.y)<other.radius+22))continue;
-    if(state.phase==='closing'&&Math.hypot(x-CLOSE_CENTER.x,y-CLOSE_CENTER.y)>state.closeRadius-20)continue;
+    if(state.phase==='closing'&&Math.hypot(x-state.closeCenter.x,y-state.closeCenter.y)>state.closeRadius-20)continue;
     const event=state.surge?.stage==='active'&&state.surge.nodeId===n.id;
     addFragment(state,x,y,state.phase==='closing'?10:event?8:5,event);
   }
@@ -216,7 +227,8 @@ function updateDrama(state:MatchState) {
   const closeStart=state.durationTicks-state.closeTicks;
   state.phase=state.tick>=state.durationTicks?'finished':state.tick>=closeStart?'closing':'playing';
   const closing=clamp((state.tick-closeStart)/state.closeTicks,0,1);
-  state.closeRadius=950-closing*720;
+  const startRadius=Math.max(...[{x:0,y:0},{x:1440,y:0},{x:0,y:900},{x:1440,y:900}].map(p=>Math.hypot(p.x-state.closeCenter.x,p.y-state.closeCenter.y)));
+  state.closeRadius=startRadius-(startRadius-230)*(closing*closing*(3-2*closing));
   const eventsAllowed=state.market.mode==='LIVE'||state.market.mode==='SYNTHETIC';
   if(state.surge) {
     const age=state.tick-state.surge.startTick;
@@ -289,7 +301,7 @@ export function stepMatch(state:MatchState,actions:Readonly<Record<string,Action
       if(distance<=sun.radius+playerRadius(p)+.01)p.integrity=0;
       else if(distance<sun.fieldRadius)p.integrity-=(3+9*(1-distance/sun.fieldRadius))*FIXED_DT;
     }
-    if(next.phase==='closing'&&Math.hypot(p.x-CLOSE_CENTER.x,p.y-CLOSE_CENTER.y)>next.closeRadius){
+    if(next.phase==='closing'&&Math.hypot(p.x-state.closeCenter.x,p.y-state.closeCenter.y)>next.closeRadius){
       const urgency=1-(next.durationTicks-next.tick)/next.closeTicks;
       p.integrity-=(22+30*urgency)*FIXED_DT;p.bankBlockedUntil=next.tick+2;
     }
@@ -313,7 +325,7 @@ export function stepMatch(state:MatchState,actions:Readonly<Record<string,Action
       if(hacker){const dx=hacker.x-p.x,dy=hacker.y-p.y,d=Math.hypot(dx,dy);if(d<MATCH.pulseRange&&d>0){hacker.x+=dx/d*80;hacker.y+=dy/d*80;}}
       for(const other of next.players) {
         const d=Math.hypot(other.x-p.x,other.y-p.y);
-        if(other.hacker||other.id===p.id||!other.connected||other.respawnTick>0||next.tick<other.protectedUntil||d>MATCH.pulseRange)continue;
+        if(walletSafe(next,other)||other.hacker||other.id===p.id||!other.connected||other.respawnTick>0||next.tick<other.protectedUntil||d>MATCH.pulseRange)continue;
         const magnitude=340*(1-d/MATCH.pulseRange)*Math.sqrt(100/playerMass(other));
         const nx=d>1e-8?(other.x-p.x)/d:1,ny=d>1e-8?(other.y-p.y)/d:0;
         const v=capVector({x:other.vx+nx*magnitude,y:other.vy+ny*magnitude},CONFIG.maxSpeed);other.vx=v.x;other.vy=v.y;
@@ -324,7 +336,7 @@ export function stepMatch(state:MatchState,actions:Readonly<Record<string,Action
   }
   // Stable pair order prevents iteration-dependent contact outcomes.
   for(let i=0;i<next.players.length;i++)for(let j=i+1;j<next.players.length;j++) {
-    const a=next.players[i]!,b=next.players[j]!;if(a.hacker||b.hacker||a.respawnTick||b.respawnTick||!a.connected||!b.connected)continue;
+    const a=next.players[i]!,b=next.players[j]!;if(walletSafe(next,a)||walletSafe(next,b)||a.hacker||b.hacker||a.respawnTick||b.respawnTick||!a.connected||!b.connected)continue;
     const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),min=playerRadius(a)+playerRadius(b);
     if(d>=min)continue;
     const nx=d>1e-8?dx/d:1,ny=d>1e-8?dy/d:0,overlap=(min-d)/2;
@@ -354,7 +366,7 @@ export function stepMatch(state:MatchState,actions:Readonly<Record<string,Action
     else{if(p.bankTicks>0)next.metrics.interruptedBanks++;p.bankTicks=0;}
   }
   electWhale(next);
-  if(next.phase==='closing'&&next.tick%30===0)next.fragments=next.fragments.filter(f=>Math.hypot(f.x-CLOSE_CENTER.x,f.y-CLOSE_CENTER.y)<next.closeRadius);
+  if(next.phase==='closing'&&next.tick%30===0)next.fragments=next.fragments.filter(f=>Math.hypot(f.x-state.closeCenter.x,f.y-state.closeCenter.y)<next.closeRadius);
 
   if(next.tick%90===0)refill(next,next.surge?.stage==='active'?110:MATCH.fragmentTarget);
   return next;
@@ -363,7 +375,7 @@ export function botAction(state:MatchState,p:Contestant):ActionInput {
   if(p.hacker||p.respawnTick||!p.connected)return {...IDLE_ACTION};
   const nearest=<T extends {x:number;y:number}>(items:readonly T[]):T|undefined=>{let best:T|undefined,distance=Infinity;for(const item of items){const d=(p.x-item.x)**2+(p.y-item.y)**2;if(d<distance){best=item;distance=d;}}return best;};
   const personality=[...p.id].reduce((n,c)=>n+c.charCodeAt(0),0);
-  const gates=state.gates.filter(g=>state.phase!=='closing'||Math.hypot(g.x-CLOSE_CENTER.x,g.y-CLOSE_CENTER.y)<state.closeRadius-55);
+  const gates=state.gates.filter(g=>state.phase!=='closing'||Math.hypot(g.x-state.closeCenter.x,g.y-state.closeCenter.y)<state.closeRadius-55);
   const gate=gates.find(g=>Math.hypot(g.x-p.x,g.y-p.y)<g.radius)??[...gates].sort((a,b)=>{
     const cost=(g:Gate)=>Math.hypot(g.x-p.x,g.y-p.y)+state.players.filter(q=>q.id!==p.id&&!q.hacker&&q.cargo>0&&Math.hypot(q.x-g.x,q.y-g.y)<g.radius).length*180;
     return cost(a)-cost(b)||a.id-b.id;
@@ -372,13 +384,13 @@ export function botAction(state:MatchState,p:Contestant):ActionInput {
   const banking=p.cargo>=35+skill*10+(personality%3)*5||p.cargo>0&&(p.bankTicks>0||p.integrity<40||state.phase==='closing');
   let target:{x:number;y:number}=banking?gate:[...state.fragments].filter(f=>
     (!f.diamond||!p.whale)&&
-    (state.phase!=='closing'||Math.hypot(f.x-CLOSE_CENTER.x,f.y-CLOSE_CENTER.y)<state.closeRadius-45)&&
+    (state.phase!=='closing'||Math.hypot(f.x-state.closeCenter.x,f.y-state.closeCenter.y)<state.closeRadius-45)&&
     !state.nodes.some(n=>Math.hypot(f.x-n.x,f.y-n.y)<(n.id===1?n.fieldRadius*.82:n.radius+playerRadius(p)+12)))
     .sort((a,b)=>{
       const cost=(f:Fragment)=>Math.hypot(f.x-p.x,f.y-p.y)/(skill===1?1:Math.sqrt(f.value))+
         (skill===3?state.players.filter(q=>q.id!==p.id&&!q.hacker&&!q.respawnTick&&Math.hypot(q.x-f.x,q.y-f.y)<45).length*35:0);
       return cost(a)-cost(b)||a.id-b.id;
-    })[0]??gate;
+    })[0]??{x:gate.x+Math.cos(personality*2.39996+Math.floor(state.tick/180))*130,y:gate.y+Math.sin(personality*2.39996+Math.floor(state.tick/180))*130};
   // Spread deposits around a wallet so bots do not continually break each other's channel.
   if(banking){const angle=personality*2.39996;target={x:gate.x+Math.cos(angle)*21,y:gate.y+Math.sin(angle)*21};}
   const distance=Math.hypot(target.x-p.x,target.y-p.y);
@@ -390,7 +402,7 @@ export function botAction(state:MatchState,p:Contestant):ActionInput {
     if(along>0&&along<Math.min(distance,230)&&Math.abs(cross)<safe){const side=cross===0?(personality%2?1:-1):Math.sign(cross);dx=-ny/d*side*180-nx/d*Math.max(0,safe+15-d)*4;dy=nx/d*side*180-ny/d*Math.max(0,safe+15-d)*4;blocked=true;break;}}
   const hacker=state.players.find(q=>q.hacker),danger=hacker?Math.hypot(p.x-hacker.x,p.y-hacker.y):Infinity;
   if(hacker&&danger<125&&!depositing){dx+=(p.x-hacker.x)/Math.max(1,danger)*240;dy+=(p.y-hacker.y)/Math.max(1,danger)*240;}
-  if(state.phase==='closing'&&Math.hypot(p.x-CLOSE_CENTER.x,p.y-CLOSE_CENTER.y)>state.closeRadius-30){
+  if(state.phase==='closing'&&Math.hypot(p.x-state.closeCenter.x,p.y-state.closeCenter.y)>state.closeRadius-30){
     dx=gate.x-p.x;dy=gate.y-p.y;
   }
   const steer=depositing?{moveX:0,moveY:0}:mouseSteering(p,{x:p.x+dx,y:p.y+dy});

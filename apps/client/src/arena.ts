@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import {Client, type Room} from '@colyseus/sdk';
 
 import { ARENA_SCHEMA_VERSION, ARENA_ROOM_NAME, normalizeMovement, AVATARS, type LobbySnapshot, type ArenaInput, type ArenaSnapshot, type Contestant, type MarketFrame, type Polarity } from '@liquidity/shared';
-import { leaderboard, totalScore, SoloArena, MotionPredictor, SnapshotBuffer, syntheticMarket, playerRadius, MATCH, MEMECOINS, CLOSE_CENTER, mouseSteering } from '@liquidity/sim';
+import { leaderboard, totalScore, SoloArena, MotionPredictor, SnapshotBuffer, syntheticMarket, playerRadius, MATCH, elapsedMatchTick, MEMECOINS, CLOSE_CENTER, mouseSteering } from '@liquidity/sim';
 import './arena.css';
 import { PORTRAITS } from './portraits.js';
 import { opportunity } from '@liquidity/sim';
@@ -79,6 +79,7 @@ function receiveArena(s:ArenaSnapshot){
 
 el("fresh-room").onclick=()=>{history.replaceState(null,"",location.pathname);void connect(true);};
 let solo:SoloArena|undefined, latest:ArenaSnapshot|undefined, previous:ArenaSnapshot|undefined;
+let soloStarted=0;
 let cachedMarket:MarketFrame=syntheticMarket(); let accumulator=0; let lastHud=0;
 let predicted:Contestant|undefined, seq=0, clientTick=0, receivedAt=0;
 let connected=false, polarity:Polarity=1, pulse=false, audioEnabled=false;
@@ -152,7 +153,7 @@ async function connect(publicLobby=false){
       room.onMessage('arena',(s:ArenaSnapshot)=>{if(netRoom===room)receiveArena(s);});
       room.onDrop(()=>{if(netRoom!==room)return;release();connected=false;predictor.reset();snapshots.reset();correction={x:0,y:0};status('Connection interrupted · reconnecting…');el('start-now').hidden=true;el('lobby-status').textContent='Reconnecting…';});
       room.onReconnect(()=>{seq=clientTick=0;accumulator=0;status('Reconnected · synchronizing…');});
-      room.onLeave(()=>{if(netRoom===room)void returnToStart('Connection closed. Join another public lobby.');});
+      room.onLeave(()=>{if(netRoom!==room)return;if(latest?.phase==='finished'){netRoom=undefined;connected=false;status('Match complete');return;}void returnToStart('Connection closed. Join another public lobby.');});
       room.onError(()=>{if(netRoom===room)status('Network error · please retry if the connection closes.');});
     }catch{if(generation===joinGeneration){await returnToStart('Lobby unavailable, full or already started. Find another public lobby.');el('fresh-room').hidden=false;}}
     finally{if(generation===joinGeneration){joining=false;el<HTMLButtonElement>('play').disabled=false;}}
@@ -160,7 +161,7 @@ async function connect(publicLobby=false){
   }
   const seed=crypto.getRandomValues(new Uint32Array(1))[0]!;
   solo=new SoloArena(seed,el<HTMLInputElement>('pilot-name').value.slice(0,16)||'CAPTAIN',avatar,cachedMarket,Number(el<HTMLInputElement>('difficulty').value) as 1|2|3,Number(el<HTMLSelectElement>('bot-count').value) as 3|4|5);
-  latest=solo.snapshot();previous=undefined;predicted=latest.players.find(p=>p.id==='solo');
+  soloStarted=Date.now();latest=solo.snapshot();previous=undefined;predicted=latest.players.find(p=>p.id==='solo');
   enterArena();joining=false;el<HTMLButtonElement>('play').disabled=false;
   status('● Single player · local');updateHud(latest);
 }
@@ -170,7 +171,15 @@ el('invite').onclick=async()=>{
   try{await navigator.clipboard.writeText(url);}catch{/* Visible link remains available. */}
   el('notice').textContent='Share the game. Multiplayer invitations are available before a match starts.';
 };
-function localTick(){
+setInterval(()=>{
+ if(!connected||multiplayer||!solo||!latest||latest.phase==='finished')return;
+ const target=elapsedMatchTick(Date.now()-soloStarted,latest.tick);
+ if(document.hidden||guideOpen()||!document.hasFocus()||target-latest.tick>6)release();
+ // Recover elapsed ticks after browser throttling; rendering cannot pause the match.
+ while(latest.tick<target)localTick(target-latest.tick>1);
+ accumulator=((Date.now()-soloStarted)*30/1000-target)*1000/30;
+},1000/30);
+function localTick(silent=false){
   if(!connected||!latest||(!solo&&!netRoom)||latest.phase==='finished'){if(latest?.phase==='finished')music.pause();return;}
   const down=(...ks:string[])=>ks.some(k=>keys.has(k))?1:0;
   let movement=normalizeMovement(down('d','arrowright')-down('a','arrowleft')+joystick.moveX,down('s','arrowdown')-down('w','arrowup')+joystick.moveY);
@@ -181,9 +190,9 @@ function localTick(){
     if(!netRoom?.connection.isOpen||performance.now()-receivedAt>500)return;
     netRoom.send('input',input);sentControls=true;predictor.push(input);return;
   }
-  previous=latest;latest=solo!.step(input);predicted=latest.players.find(p=>p.id==='solo');
-  if(latest.tick-lastHud>=6||latest.phase==='finished'){updateHud(latest);lastHud=latest.tick;}
-  for(const event of latest.events)if(event.tick>lastEventTick&&event.playerId==='solo')tone(event.type==='bank'?660:event.type==='elimination'?110:330);lastEventTick=latest.tick;
+  previous=latest;latest=solo!.step(input);if(latest.phase==='finished')music.pause();predicted=latest.players.find(p=>p.id==='solo');
+  if(!silent&&(latest.tick-lastHud>=6||latest.phase==='finished')){updateHud(latest);lastHud=latest.tick;}
+  for(const event of latest.events)if(!silent&&!document.hidden&&event.tick>lastEventTick&&event.playerId==='solo')tone(event.type==='bank'?660:event.type==='elimination'?110:330);lastEventTick=latest.tick;
 }
 function updateInspector(s:ArenaSnapshot){const select=el<HTMLSelectElement>('inspect-node');const roster=s.nodes.map(n=>n.id).join(',');if(select.dataset.roster!==roster){select.replaceChildren();select.dataset.roster=roster;for(const n of s.nodes){const o=document.createElement('option');o.value=String(n.id);o.textContent=n.symbol;select.append(o);}}const n=s.nodes.find(n=>String(n.id)===select.value);if(n)el('inspect-values').textContent=`${n.symbol} · momentum ${n.momentumN.toFixed(2)} / ±1 · turbulence ${n.volatilityN.toFixed(2)} / 1 · gravity ${(n.gravity/1000000).toFixed(2)} M · ${s.marketMode}`;}
 el('inspect-node').onchange=()=>{if(latest)updateInspector(latest);};
@@ -193,7 +202,7 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
   const whale=s.players.find(p=>p.whale),ownWhale=whale?.id===s.selfId;
   if(!ownWhale)polarity=globalPolarity;
   document.querySelectorAll<HTMLButtonElement>('[data-polarity]').forEach(b=>{b.disabled=!ownWhale;b.setAttribute('aria-pressed',String(Number(b.dataset.polarity)===globalPolarity));b.title=ownWhale?'Whale controls the shared current':'Bank the biggest wallet to control the current';});
-  el('opportunity-text').textContent=s.airdrop?`AIRDROP · Follow ${s.airdrop.name}: 15-point fragments for ${Math.ceil((s.airdrop.end-s.tick)/30)} more seconds.`:opportunity(s,globalPolarity);
+  el('opportunity-text').textContent=s.phase!=='finished'&&s.airdrop?`AIRDROP · Follow ${s.airdrop.name}: 15-point fragments for ${Math.ceil((s.airdrop.end-s.tick)/30)} more seconds.`:opportunity(s,globalPolarity);
   if(previous?.marketSourceTime&&s.marketSourceTime&&s.marketSourceTime!==previous.marketSourceTime){
     const changes=s.nodes.map(n=>({n,delta:n.momentumN-(previous!.nodes.find(old=>old.id===n.id)?.momentumN??n.momentumN)})).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
     const change=changes[0];updateMessage=change&&Math.abs(change.delta)>.005?`CMC update · ${change.n.symbol} current shifted ${change.delta>0?'upward':'downward'} · fields adjust gradually`:'CMC update received · currents remain broadly stable';
@@ -210,6 +219,7 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
 }
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 class ArenaScene extends Phaser.Scene {
+  private finaleStarted=0;
   private g!:Phaser.GameObjects.Graphics;private sprites=new Map<string,Phaser.GameObjects.Image>();private labels=new Map<string,Phaser.GameObjects.Text>();
   preload(){this.load.on('progress',(value:number)=>showLoading(Math.round(value*100),'Loading captains and planets…'));for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.image(`coin-${symbol}`,'data:image/svg+xml;base64,'+btoa(url));}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
   create(){this.g=this.add.graphics();hideLoading();}
@@ -218,8 +228,8 @@ class ArenaScene extends Phaser.Scene {
   label(id:string,text:string,x:number,y:number,color='#8ea3b6',size=13){let l=this.labels.get(id);if(!l){l=this.add.text(x,y,text,{fontFamily:'monospace',fontSize:size,color}).setOrigin(.5);this.labels.set(id,l);}l.setText(text).setPosition(x,y).setColor(color).setVisible(true);}
   override update(_time:number,delta:number){
     if(document.querySelector<HTMLElement>('main')!.hidden)return;
-    if(document.hidden||guideOpen()||!document.hasFocus()){release();accumulator=0;if(connected)status(multiplayer?'Controls released · online match continues':'Paused · click the arena to resume');}
-    else if(connected){if(musicPending){musicPending=false;startMusic();}status(multiplayer?(performance.now()-receivedAt>500?'Connection delayed · waiting for server':'● Multiplayer · connected'):'● Single player · local');accumulator+=Math.min(delta,100);let steps=0;while(accumulator>=1000/30&&steps++<3){localTick();accumulator-=1000/30;}}
+    if(document.hidden||guideOpen()||!document.hasFocus()){release();accumulator=0;if(connected)status(latest?.phase==='finished'?'Match complete':'Controls released · match continues');}
+    else if(connected){if(musicPending){musicPending=false;startMusic();}status(latest?.phase==='finished'?'Match complete':multiplayer?(performance.now()-receivedAt>500?'Connection delayed · waiting for server':'● Multiplayer · connected'):'● Single player · local');if(multiplayer){accumulator+=Math.min(delta,100);let steps=0;while(accumulator>=1000/30&&steps++<3){localTick();accumulator-=1000/30;}}}
     const g=this.g;if(!g)return;g.clear();for(const item of this.sprites.values())item.setVisible(false);for(const l of this.labels.values())l.setVisible(false);g.fillStyle(0x080f1b).fillRect(0,0,1440,900);g.lineStyle(1,0x193040,.5);for(let x=0;x<1440;x+=60)g.lineBetween(x,0,x,900);for(let y=0;y<900;y+=60)g.lineBetween(0,y,1440,y);
     const s=latest;if(!s){this.label('loading','CHOOSE YOUR CAPTAIN',720,450,'#72efd0',22);return;}
     const buffered=multiplayer?snapshots.sample(performance.now()):undefined;
@@ -266,9 +276,37 @@ class ArenaScene extends Phaser.Scene {
     }
     for(const e of s.events){const age=(s.tick-e.tick)/30;if(e.type==='pulse'&&age<.65)g.lineStyle(2,0x9ae8f5,1-age/.65).strokeCircle(e.x,e.y,reduced?100:20+age*200);}
     if(s.surge){const n=s.nodes.find(n=>n.id===s.surge!.nodeId);if(n)g.lineStyle(3,0xf3c675,reduced?.6:.45+Math.sin(s.tick*.15)*.2).strokeCircle(n.x,n.y,n.fieldRadius+8);}
-    if(s.phase!=='playing'){g.lineStyle(5,0xf08080,.85).strokeCircle(CLOSE_CENTER.x,CLOSE_CENTER.y,s.closeRadius);this.label('close',`MARKET CLOSE · ${Math.ceil(s.remainingTicks/30)}s · OUTSIDE = DAMAGE`,720,30,'#f6a2a2',20);}
-    if(s.phase==='closing'){const self=s.players.find(p=>p.id===s.selfId);if(self&&!self.respawnTick&&Math.hypot(self.x-CLOSE_CENTER.x,self.y-CLOSE_CENTER.y)>s.closeRadius){g.fillStyle(0xe83333,reduced?.1:.08+.04*Math.sin(s.tick/8)).fillRect(0,0,1440,900);this.label('storm','LEAVE THE STORM!',720,85,'#ffb0a0',26);}}
-    if(s.phase==='finished'){g.fillStyle(0x070d18,.78).fillRect(0,340,1440,190);this.label('end','MARKET CLOSED',720,410,'#78efd0',40);this.label('winner',`Winner: ${leaderboard(s.players)[0]?.name??'—'} · play again with “New match”`,720,470,'#d4e6ee',19);}
+    if(s.phase!=='playing'){g.lineStyle(5,0xf08080,.85).strokeCircle((s.closeCenter??CLOSE_CENTER).x,(s.closeCenter??CLOSE_CENTER).y,s.closeRadius);this.label('close',`MARKET CLOSE · ${Math.ceil(s.remainingTicks/30)}s · OUTSIDE = DAMAGE`,720,30,'#f6a2a2',20);}
+    if(s.phase==='closing'){const self=s.players.find(p=>p.id===s.selfId);if(self&&!self.respawnTick&&Math.hypot(self.x-(s.closeCenter??CLOSE_CENTER).x,self.y-(s.closeCenter??CLOSE_CENTER).y)>s.closeRadius){g.fillStyle(0xe83333,reduced?.1:.08+.04*Math.sin(s.tick/8)).fillRect(0,0,1440,900);this.label('storm','LEAVE THE STORM!',720,85,'#ffb0a0',26);}}
+    if(s.phase!=='finished')this.finaleStarted=0;
+    else {
+      if(!this.finaleStarted)this.finaleStarted=performance.now();
+      const elapsed=reduced?30:(performance.now()-this.finaleStarted)/1000;
+      // Bounded procedural shockwaves: no particle systems or additional textures.
+      if(elapsed<1.2){for(const n of s.nodes){g.lineStyle(5,0xffca70,Math.max(0,1-elapsed/1.2)).strokeCircle(n.x,n.y,n.radius+elapsed*260);}}
+      g.fillStyle(0x070d18,Math.min(.96,elapsed*.8)).fillRect(0,0,1440,900);
+      if(elapsed>.8){
+        for(const item of this.sprites.values())item.setVisible(false);for(const l of this.labels.values())l.setVisible(false);
+        this.label('end','MARKET CLOSED',720,70,'#78efd0',36);
+        this.label('chart-caption','FINAL WALLET POINTS · LAST TO FIRST',720,115,'#a3bccb',17);
+        const ranked=leaderboard(s.players.filter(p=>!p.hacker)).reverse();
+        const max=Math.max(100,Math.ceil(Math.max(...ranked.map(p=>p.banked))/100)*100);
+        for(let j=0;j<=4;j++){const y=700-j*125;g.lineStyle(1,0x284152).lineBetween(110,y,1350,y);this.label('axis'+j,String(max*j/4),65,y,'#93aebb',16);}
+        const progress=Math.max(0,(elapsed-1.2)/.8);
+        const points=ranked.map((p,i)=>({p,x:170+i*1120/Math.max(1,ranked.length-1),y:700-p.banked/max*500}));
+        for(let i=0;i<points.length;i++){
+          const q=points[i]!,prev=points[i-1],t=Math.min(1,Math.max(0,progress-i));
+          if(prev&&t>0){const midX=(prev.x+q.x)/2,midY=Math.min(715,prev.y+20);g.lineStyle(3,0x78efd0);if(t<.45)g.lineBetween(prev.x,prev.y,prev.x+(midX-prev.x)*t/.45,prev.y+(midY-prev.y)*t/.45);else{g.lineBetween(prev.x,prev.y,midX,midY);g.lineBetween(midX,midY,midX+(q.x-midX)*(t-.45)/.55,midY+(q.y-midY)*(t-.45)/.55);}}
+          if(t<1)continue;
+          const winner=i===points.length-1;
+          if(winner){for(let ring=4;ring>0;ring--)g.fillStyle(0xffd16b,.04).fillCircle(q.x,q.y,30+ring*12);g.lineStyle(3,0xffd16b).strokeCircle(q.x,q.y,30);}
+          this.sprite('final-'+q.p.id,'avatar-'+q.p.avatar,q.x,q.y,45);
+          this.label('points-'+q.p.id,String(q.p.banked),q.x,q.y-42,winner?'#ffd16b':'#e2f6ff',22);
+          this.label('rank-'+q.p.id,(points.length-i)+'. '+q.p.name.slice(0,13),q.x,755+(i%2)*27,winner?'#ffd16b':'#a3bccb',14);
+          if(winner)this.label('winner','WINNER · '+q.p.name,720,840,'#ffd16b',26);
+        }
+      }
+    }
   }
 }
 function createGame(){return new Phaser.Game({type:Phaser.AUTO,parent:'arena',width:1440,height:900,backgroundColor:'#080f1b',scene:ArenaScene,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},audio:{noAudio:true},render:{antialias:true}});}

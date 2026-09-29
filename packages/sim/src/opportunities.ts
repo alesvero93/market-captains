@@ -2,8 +2,8 @@ import type {ArenaSnapshot,Polarity} from '@liquidity/shared';
 /** Gameplay guidance only: no trade recommendations, invented prices or additional API calls. */
 export function opportunity(s:ArenaSnapshot,polarity:Polarity):string {
   const self=s.players.find(p=>p.id===s.selfId);
-  if(s.phase==='finished')return 'Market closed. Start a new match to explore a new arena.';
-  if(s.phase==='closing')return 'MARKET CLOSE · Move toward the central wallet and stay inside the shrinking circle.';
+  if(s.phase==='finished')return 'MARKET CLOSED · Final ranking uses banked wallet points. Start a new match to play again.';
+  if(s.phase==='closing')return 'MARKET CLOSE · Move toward a wallet inside the closing zone and stay inside the shrinking circle.';
   const hacker=s.players.find(p=>p.hacker);
   if(self&&hacker&&Math.hypot(self.x-hacker.x,self.y-hacker.y)<150)return 'HACKER NEARBY · Pulse, boost or reach a wallet shield. Your banked points stay safe.';
   if(self&&self.cargo>=40)return `Secure ${self.cargo} cargo · Stop inside a green wallet for 3 seconds.`;

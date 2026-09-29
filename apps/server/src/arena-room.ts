@@ -91,7 +91,7 @@ export class ArenaRoom extends Room {
     const m=this.match;
     return {schemaVersion:ARENA_SCHEMA_VERSION,matchId:this.roomId,selfId:id,seed:m.seed,tick:m.tick,ackSeq:this.gates.get(id)?.ackSeq??-1,
       players:m.players,nodes:m.nodes,fragments:m.fragments,gates:m.gates,events:m.events,remainingTicks:Math.max(0,m.durationTicks-m.tick),
-      globalPolarity:m.globalPolarity,airdrop:m.tick>=m.airdrop.start&&m.tick<m.airdrop.end?m.airdrop:undefined,phase:m.phase,closeRadius:m.closeRadius,surge:m.surge,marketVersion:m.market.version,marketMode:m.market.mode,
+      globalPolarity:m.globalPolarity,airdrop:m.tick>=m.airdrop.start&&m.tick<m.airdrop.end?m.airdrop:undefined,phase:m.phase,closeRadius:m.closeRadius,closeCenter:m.closeCenter,surge:m.surge,marketVersion:m.market.version,marketMode:m.market.mode,
       marketSourceTime:m.market.sourceTime,marketMessage:m.market.message};
   }
 }

@@ -1,3 +1,7 @@
+/** Absolute elapsed time survives throttled render schedules and never rewinds. */
+export function elapsedMatchTick(elapsedMs:number,currentTick=0):number {
+  return Math.min(9000,Math.max(currentTick,Math.floor(Math.max(0,elapsedMs)*30/1000)));
+}
 import { ARENA_SCHEMA_VERSION, type ActionInput, type ArenaSnapshot, type MarketFrame } from '@liquidity/shared';
 import { addPlayer, applyMarket, botAction, createMatch, stepMatch, syntheticMarket } from './match.js';
 
@@ -21,7 +25,7 @@ export class SoloArena {
     const m=this.state;
     return {schemaVersion:ARENA_SCHEMA_VERSION,matchId:`solo-${m.seed}`,selfId:'solo',seed:m.seed,tick:m.tick,ackSeq:m.tick,
       players:m.players,nodes:m.nodes,fragments:m.fragments,gates:m.gates,events:m.events,remainingTicks:Math.max(0,m.durationTicks-m.tick),
-      globalPolarity:m.globalPolarity,airdrop:m.tick>=m.airdrop.start&&m.tick<m.airdrop.end?m.airdrop:undefined,phase:m.phase,closeRadius:m.closeRadius,surge:m.surge,marketVersion:m.market.version,marketMode:m.market.mode,
+      globalPolarity:m.globalPolarity,airdrop:m.tick>=m.airdrop.start&&m.tick<m.airdrop.end?m.airdrop:undefined,phase:m.phase,closeRadius:m.closeRadius,closeCenter:m.closeCenter,surge:m.surge,marketVersion:m.market.version,marketMode:m.market.mode,
       marketSourceTime:m.market.sourceTime,marketMessage:m.market.message};
   }
 }

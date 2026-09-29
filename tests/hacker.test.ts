@@ -39,8 +39,8 @@ test('contact drains cargo gradually, protects banked points and stops immediate
 test('wallet shield excludes hacker, including pulse knockback; deposits remain intact',()=>{
  let s=addPlayer(addPlayer(createMatch(12),'bot','Bot',true),'human','Human');
  s.tick=s.hackerWindows[0]!.start-1;s=stepMatch(s,{});s.nodes=[];s.baseNodes=[];s.fragments=[];
- Object.assign(s.players.find(p=>p.hacker)!,{x:105,y:110});
- Object.assign(s.players.find(p=>!p.bot)!,{x:105,y:110,cargo:40,banked:50,protectedUntil:0});
+ Object.assign(s.players.find(p=>p.hacker)!,{x:s.gates[0]!.x,y:s.gates[0]!.y});
+ Object.assign(s.players.find(p=>!p.bot)!,{x:s.gates[0]!.x,y:s.gates[0]!.y,cargo:40,banked:50,protectedUntil:0});
  for(let i=0;i<90;i++)s=stepMatch(s,{human:{...IDLE_ACTION,bank:true}});
  assert.equal(s.players.find(p=>!p.bot)!.banked,90);
  const hacker=s.players.find(p=>p.hacker)!;
@@ -49,7 +49,7 @@ test('wallet shield excludes hacker, including pulse knockback; deposits remain 
 
 test('bots do not waste pulses on nearby empty captains and protect an active deposit',()=>{
  let s=addPlayer(addPlayer(createMatch(5),'bot','Bot',true),'p','P');
- Object.assign(s.players[0]!,{x:105,y:110,cargo:50,bankTicks:30});
+ Object.assign(s.players[0]!,{x:s.gates[0]!.x,y:s.gates[0]!.y,cargo:50,bankTicks:30});
  Object.assign(s.players[1]!,{x:120,y:110,cargo:0});
  const action=botAction(s,s.players[0]!);assert.equal(action.pulse,false);assert.equal(action.boost,false);
  s.players[0]!.cargo=0;s.players[0]!.bankTicks=0;assert.equal(botAction(s,s.players[0]!).pulse,false);
@@ -57,7 +57,7 @@ test('bots do not waste pulses on nearby empty captains and protect an active de
 
 test('settled neighbours can finish deposits without endless contact interruptions',()=>{
  let s=addPlayer(addPlayer(createMatch(5),'a','A'),'b','B');s.nodes=[];s.baseNodes=[];s.fragments=[];
- Object.assign(s.players[0]!,{x:95,y:110,cargo:40});Object.assign(s.players[1]!,{x:115,y:110,cargo:40});
+ Object.assign(s.players[0]!,{x:s.gates[0]!.x-10,y:s.gates[0]!.y,cargo:40});Object.assign(s.players[1]!,{x:s.gates[0]!.x+10,y:s.gates[0]!.y,cargo:40});
  for(let i=0;i<90;i++)s=stepMatch(s,{a:{...IDLE_ACTION,bank:true},b:{...IDLE_ACTION,bank:true}});
  assert.equal(s.players[0]!.banked,40);assert.equal(s.players[1]!.banked,40);
 });

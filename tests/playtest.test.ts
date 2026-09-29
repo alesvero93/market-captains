@@ -14,7 +14,7 @@ test('five to seven separated planets, seeded selection, BTC center and slow ETH
    if(i%30===0){validateNodes(s.nodes);const btc=s.nodes.find(n=>n.id===1)!;assert.equal(btc.x,720);assert.equal(btc.y,450);}
  }
  assert.notEqual(s.nodes.find(n=>n.id===1027)!.x,eth.x);
- assert.ok(s.gates.some(g=>Math.hypot(g.x-CLOSE_CENTER.x,g.y-CLOSE_CENTER.y)+g.radius<=s.closeRadius));
+ assert.ok(s.gates.some(g=>Math.hypot(g.x-s.closeCenter.x,g.y-s.closeCenter.y)+g.radius<=s.closeRadius));
  const ranked={...syntheticMarket(),nodes:syntheticMarket().nodes.map(n=>({...n,marketRank:n.id===5426?25:5}))};
  assert.equal(createMatch(85,ranked).nodes.some(n=>n.id===5426),false);
 });

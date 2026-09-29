@@ -45,9 +45,9 @@ test('one seeded memecoin drops 450 points across exactly 30 seconds with bounde
 test('storm damage penetrates protection, ramps up and leaves a usable final wallet',()=>{
  let s=empty();s.tick=8800;Object.assign(s.players[0]!,{x:80,y:80,protectedUntil:99999});
  const before=s.players[0]!.integrity;s=stepMatch(s,{});assert.ok(before-s.players[0]!.integrity>1.5);
- s.tick=8998;s=stepMatch(s,{});assert.ok(s.gates.some(g=>Math.hypot(g.x-CLOSE_CENTER.x,g.y-CLOSE_CENTER.y)+g.radius<s.closeRadius));
+ s.tick=8998;s=stepMatch(s,{});assert.ok(s.gates.some(g=>Math.hypot(g.x-s.closeCenter.x,g.y-s.closeCenter.y)+g.radius<s.closeRadius));
  s.tick=8800;s.players[0]!.respawnTick=8801;s.players[0]!.integrity=0;s=stepMatch(s,{});
- assert.equal(s.players[0]!.respawnTick,0);assert.ok(Math.hypot(s.players[0]!.x-CLOSE_CENTER.x,s.players[0]!.y-CLOSE_CENTER.y)<s.closeRadius);
+ assert.equal(s.players[0]!.respawnTick,0);assert.ok(Math.hypot(s.players[0]!.x-s.closeCenter.x,s.players[0]!.y-s.closeCenter.y)<s.closeRadius);
  assert.ok(s.fragments.length<=MATCH.fragmentCap);
 });
 test('mouse steering reaches and settles near the cursor; boost is stronger but uses fuel',()=>{

@@ -6,7 +6,7 @@ import { ArenaInputQueue } from '../apps/server/dist/arena-input.js';
 import { replayMatch, type ReplayRecord } from '../apps/server/dist/replay.js';
 
 test('deposit requires 90 uninterrupted ticks and preserves banked score on elimination',()=>{
- let s=addPlayer(createMatch(42),'p','Pilot');Object.assign(s.players[0]!,{x:105,y:110,cargo:50,protectedUntil:0});
+ let s=addPlayer(createMatch(42),'p','Pilot');Object.assign(s.players[0]!,{x:s.gates[0]!.x,y:s.gates[0]!.y,cargo:50,protectedUntil:0});
  const bank={...IDLE_ACTION,bank:true};for(let i=0;i<89;i++)s=stepMatch(s,{p:bank});
  assert.equal(s.players[0]!.banked,0);assert.equal(s.players[0]!.bankTicks,89);
  s=stepMatch(s,{p:bank});assert.equal(s.players[0]!.banked,50);assert.equal(s.players[0]!.cargo,0);
@@ -14,17 +14,17 @@ test('deposit requires 90 uninterrupted ticks and preserves banked score on elim
  assert.equal(s.players[0]!.banked,50);assert.equal(s.players[0]!.cargo,0);assert.ok(s.players[0]!.respawnTick>s.tick);
  for(let i=0;i<90;i++)s=stepMatch(s,{});assert.equal(s.players[0]!.respawnTick,0);assert.equal(s.players[0]!.banked,50);
 });
-test('release interrupts deposit; pulse consumes energy once and interrupts opponent',()=>{
+test('release interrupts deposit; wallet shields deposits from pulses',()=>{
  let s=addPlayer(addPlayer(createMatch(42),'a','A'),'b','B');
- Object.assign(s.players[0]!,{x:105,y:110,cargo:50,bankTicks:50,protectedUntil:0});
- Object.assign(s.players[1]!,{x:175,y:110,protectedUntil:0});
+ Object.assign(s.players[0]!,{x:s.gates[0]!.x,y:s.gates[0]!.y,cargo:50,bankTicks:50,protectedUntil:0});
+ Object.assign(s.players[1]!,{x:s.gates[0]!.x+70,y:s.gates[0]!.y,protectedUntil:0});
  s=stepMatch(s,{a:{...IDLE_ACTION,bank:true},b:{...IDLE_ACTION,pulse:true}});
- assert.equal(s.players[0]!.bankTicks,0);assert.equal(s.metrics.pulses,1);assert.equal(s.players[1]!.energy,75);
+ assert.equal(s.players[0]!.bankTicks,51);assert.equal(s.metrics.pulses,1);assert.equal(s.players[1]!.energy,75);
  s=stepMatch(s,{b:{...IDLE_ACTION,pulse:true}});assert.equal(s.metrics.pulses,1);
  Object.assign(s.players[0]!,{bankTicks:20});s=stepMatch(s,{});assert.equal(s.players[0]!.bankTicks,0);
 });
 test('fragments have one owner; cargo mass reduces boost response and energy is bounded',()=>{
- let s=addPlayer(createMatch(1),'p','P');Object.assign(s.players[0]!,{x:105,y:110});s.fragments=[{id:1,x:105,y:110,vx:0,vy:0,value:5,event:false}];
+ let s=addPlayer(createMatch(1),'p','P');Object.assign(s.players[0]!,{x:s.gates[0]!.x,y:s.gates[0]!.y});s.fragments=[{id:1,x:s.gates[0]!.x,y:s.gates[0]!.y,vx:0,vy:0,value:5,event:false}];
  s=stepMatch(s,{});assert.equal(s.players[0]!.cargo,5);assert.equal(s.fragments.length,0);s=stepMatch(s,{});assert.equal(s.players[0]!.cargo,5);
  const light={...s.players[0]!,cargo:0},heavy={...light,cargo:500};const action={...IDLE_ACTION,moveX:1,boost:true};
  const a=predictMotion(light,[],action,1,0),b=predictMotion(heavy,[],action,1,0);assert.ok(a.vx>b.vx);assert.ok(a.energy<light.energy);

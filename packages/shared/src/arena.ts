@@ -42,7 +42,7 @@ export interface ArenaSnapshot {
   tick: number; ackSeq: number; players: Contestant[]; nodes: readonly MarketNode[];
   fragments: Fragment[]; gates: readonly Gate[]; events: GameEvent[];
   globalPolarity?: Polarity; airdrop?: Airdrop | undefined;
-  remainingTicks: number; phase: 'playing' | 'closing' | 'finished'; closeRadius: number; surge: Surge | null;
+  remainingTicks: number; phase: 'playing' | 'closing' | 'finished'; closeRadius: number; closeCenter?: {x:number;y:number}; surge: Surge | null;
   marketVersion: number; marketMode: MarketMode; marketSourceTime: number | null; marketMessage: string;
 }
 export function parseArenaInput(value: unknown): ArenaInput | null {
