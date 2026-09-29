@@ -9,7 +9,7 @@ import './arena.css';
 import { PORTRAITS } from './portraits.js';
 import { opportunity } from '@liquidity/sim';
 import { installGuide, guideOpen } from './guide.js';
-const coinUrls=import.meta.glob('./assets/coins/*.svg',{eager:true,query:'?inline',import:'default'}) as Record<string,string>;
+const coinUrls=import.meta.glob('./assets/coins/*.svg',{eager:true,query:'?raw',import:'default'}) as Record<string,string>;
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <header><a class="logo" href="/" aria-label="Market Captains home"><img class="brand-logo" src="${brandLogo}" alt="MARKET CAPTAINS" width="240" height="60" /></a><span>THE MARKET IS THE MAP</span><a href="https://coinmarketcap.com/" target="_blank" rel="noopener">Data by CoinMarketCap ↗</a></header>
@@ -124,7 +124,7 @@ function updateHud(s:ArenaSnapshot){updateInspector(s);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 class ArenaScene extends Phaser.Scene {
   private g!:Phaser.GameObjects.Graphics;private sprites=new Map<string,Phaser.GameObjects.Image>();private labels=new Map<string,Phaser.GameObjects.Text>();
-  preload(){this.load.on('progress',(value:number)=>showLoading(Math.round(value*100),'Loading captains and planets…'));for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.svg(`coin-${symbol}`,url,{width:160,height:160});}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
+  preload(){this.load.on('progress',(value:number)=>showLoading(Math.round(value*100),'Loading captains and planets…'));for(const [path,url] of Object.entries(coinUrls)){const symbol=path.split('/').pop()!.replace('.svg','').toUpperCase();this.load.svg(`coin-${symbol}`,'data:image/svg+xml;base64,'+btoa(url),{width:160,height:160});}PORTRAITS.forEach((url,i)=>this.load.image(`avatar-${i}`,url));}
   create(){this.g=this.add.graphics();hideLoading();}
   sprite(id:string,texture:string,x:number,y:number,size:number){let item=this.sprites.get(id);if(!item){item=this.add.image(x,y,texture);this.sprites.set(id,item);}item.setTexture(texture).setPosition(x,y).setDisplaySize(size,size).setVisible(true);}
 
