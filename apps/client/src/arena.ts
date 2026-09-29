@@ -41,6 +41,7 @@ let cachedMarket:MarketFrame=syntheticMarket(); let accumulator=0; let lastHud=0
 let predicted:Contestant|undefined, seq=0, clientTick=0, receivedAt=0;
 let connected=false, polarity:Polarity=1, pulse=false, audioEnabled=false;
 let lastEventTick=-1;
+let musicPending=false;
 const music=new Audio(musicUrl);music.loop=false;music.preload='none';music.volume=.35;
 function musicStatus(){el('sound').textContent=music.ended?'Music finished':music.paused?'Music off':'Music on';el('sound').setAttribute('aria-pressed',String(!music.paused));}
 music.onended=musicStatus;music.onpause=musicStatus;music.onplay=musicStatus;
@@ -80,7 +81,7 @@ async function refreshMarket(){
 }
 void refreshMarket();setInterval(()=>void refreshMarket(),60000);
 async function connect(){
-  release();startMusic();accumulator=0;seq=clientTick=0;lastEventTick=-1;lastHud=0;
+  release();music.pause();musicPending=true;accumulator=0;seq=clientTick=0;lastEventTick=-1;lastHud=0;
   const seed=crypto.getRandomValues(new Uint32Array(1))[0]!;
   solo=new SoloArena(seed,el<HTMLInputElement>('pilot-name').value.slice(0,16)||'CAPTAIN',avatar,cachedMarket);
   latest=solo.snapshot();previous=undefined;predicted=latest.players.find(p=>p.id==='solo');
@@ -131,7 +132,7 @@ class ArenaScene extends Phaser.Scene {
   label(id:string,text:string,x:number,y:number,color='#8ea3b6',size=13){let l=this.labels.get(id);if(!l){l=this.add.text(x,y,text,{fontFamily:'monospace',fontSize:size,color}).setOrigin(.5);this.labels.set(id,l);}l.setText(text).setPosition(x,y).setColor(color).setVisible(true);}
   override update(_time:number,delta:number){
     if(document.hidden||guideOpen()||!document.hasFocus()){release();accumulator=0;if(connected)status('Paused · click the arena to resume');}
-    else if(connected){status('● Single player · local');accumulator+=Math.min(delta,100);let steps=0;while(accumulator>=1000/30&&steps++<3){localTick();accumulator-=1000/30;}}
+    else if(connected){if(musicPending){musicPending=false;startMusic();}status('● Single player · local');accumulator+=Math.min(delta,100);let steps=0;while(accumulator>=1000/30&&steps++<3){localTick();accumulator-=1000/30;}}
     const g=this.g;if(!g)return;g.clear();for(const item of this.sprites.values())item.setVisible(false);for(const l of this.labels.values())l.setVisible(false);g.fillStyle(0x080f1b).fillRect(0,0,1440,900);g.lineStyle(1,0x193040,.5);for(let x=0;x<1440;x+=60)g.lineBetween(x,0,x,900);for(let y=0;y<900;y+=60)g.lineBetween(0,y,1440,y);
     const s=latest;if(!s){this.label('loading','CHOOSE YOUR CAPTAIN',720,450,'#72efd0',22);return;}
     const renderFrom=previous??s, renderTo=s; const alpha=Math.min(1,accumulator/(1000/30));
