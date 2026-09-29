@@ -12,3 +12,4 @@ coverage/
 # Original handoff and generated private working material are not public sources.
 docs/handoff/
 release/
+.patch-work/

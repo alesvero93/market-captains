@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { request } from 'node:http';
 import path from 'node:path';
+import {readdirSync,readFileSync} from 'node:fs';
 import { Client, type Room } from '@colyseus/sdk';
 import { createGameServer } from '../apps/server/dist/server.js';
 import { originGuard } from '../apps/server/dist/client-assets.js';
@@ -15,6 +16,12 @@ test('compiled frontend and real multiplayer share one port; private paths and f
    const response=await fetch(endpoint);assert.equal(response.status,200);assert.equal(response.headers.get('x-content-type-options'),'nosniff');assert.ok(response.headers.get('content-security-policy')?.includes("frame-ancestors 'none'"));
    const html=await response.text();assert.equal(Number(response.headers.get('content-length')),Buffer.byteLength(html));assert.ok(html.includes('MARKET CAPTAINS'));assert.ok(!html.includes('/@vite/client'));
    const asset=html.match(/src="(\/assets\/[^" ]+\.js)"/)?.[1];assert.ok(asset);const js=await fetch(endpoint+asset);assert.equal(js.status,200);assert.ok(js.headers.get('content-type')?.includes('javascript'));
+   // A warm entry script alone does not exercise a first visit on another device.
+   await Promise.all(readdirSync('apps/client/dist/assets').map(async name=>{
+     const result=await fetch(endpoint+'/assets/'+name,{signal:AbortSignal.timeout(5000)});
+     assert.equal(result.status,200,name);
+     assert.deepEqual(Buffer.from(await result.arrayBuffer()),readFileSync(path.join('apps/client/dist/assets',name)),name);
+   }));
    for(const target of ['/.env.local','/apps/server/.env.local','/.data/cmc-budget.json','/assets/%2e%2e%2f.env.local','/src/arena.ts','/assets/missing.js'])assert.equal((await fetch(endpoint+target)).status,404,target);
    assert.equal((await fetch(endpoint+'/health',{headers:{Origin:'https://untrusted.example'}})).status,403);
    const health=await fetch(endpoint+'/health',{headers:{Origin:origin}});assert.equal(health.status,200);assert.ok(Number(health.headers.get('content-length'))>0);

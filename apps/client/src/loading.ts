@@ -7,3 +7,11 @@ export function showLoading(value:number,label:string){
   panel.hidden=false;panel.querySelector('progress')!.value=value;panel.querySelector('p')!.textContent=label;
 }
 export function hideLoading(){panel?.remove();panel=undefined;}
+
+export function showLoadingError(){
+  showLoading(10,'The game files could not be loaded. Check your connection and retry.');
+  if(panel?.querySelector('button'))return;
+  const retry=document.createElement('button');retry.textContent='Retry loading';
+  retry.style.cssText='padding:12px 24px;border:1px solid #78efd0;border-radius:8px;background:#163830;color:#d8fff5;cursor:pointer';
+  retry.onclick=()=>location.reload();panel?.querySelector('div')?.append(retry);
+}

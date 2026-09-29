@@ -10,3 +10,5 @@ minimumReleaseAgeExclude:
   - '@colyseus/sdk@0.18.4'
   - '@colyseus/shared-types@0.18.3'
   - '@colyseus/ws-transport@0.18.3'
+patchedDependencies:
+  '@colyseus/better-call@1.3.3': patches/@colyseus__better-call@1.3.3.patch

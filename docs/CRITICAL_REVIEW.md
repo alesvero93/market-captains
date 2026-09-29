@@ -86,3 +86,11 @@ Public mode now runs locally with three bots, fixed 30 Hz steps capped at three 
 ## Five-minute refinement — 29 September 2026
 
 Arcade gravity previously extended beyond visible halos and continued accelerating idle players. It now tapers to zero at halo edges; released controls engage braking and settle to zero velocity. Player rendering uses the same fixed-step interpolation as other contestants, removing a separate self-position filter. Matches last 9000 ticks (five active minutes); market close lasts one minute and both sixty-second hacker visits remain. Music and loader added; deployment/browser audio validation is pending.
+
+### 2026-09-29 — Cold-load HTTP delivery failure
+- Public first visits could stall on scripts, styles and the loading poster. Parallel public GETs reproduced timeouts for the shared JS bundle and arena CSS while other assets returned 200.
+- Found a concrete defect in the pinned @colyseus/better-call 1.3.3 Node adapter: res.end() ran inside the read loop rather than when the stream ended. After write() backpressure, the final read could exit without ending the response; multi-chunk streams could end prematurely.
+- Added a pnpm dependency patch for both ESM and CJS adapters, committed through patchedDependencies and the lockfile so Render applies it during frozen installs. Remove this patch only after upgrading to an upstream version verified by the regression tests.
+- Reproduced the large-body timeout before applying the patch. Both backpressure and multi-chunk regression tests pass afterward. Production tests now download and compare every built asset, including poster and audio, instead of testing only the entry script.
+- Startup now logs the actual failure and offers a Retry loading button. No automatic reload loop; gameplay and music timing unchanged.
+- Validation: pnpm check, 64 tests passed; offline frozen-lockfile install passed. Public deployment verification still pending push/deploy.
